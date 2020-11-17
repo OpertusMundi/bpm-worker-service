@@ -39,6 +39,12 @@
 
     <dependencies>
 
+		<dependency>
+			<groupId>eu.opertusmundi</groupId>
+			<artifactId>opertus-mundi-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
