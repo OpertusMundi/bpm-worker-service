@@ -11,8 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.Assert;
 
-
-abstract class AbstractTaskService implements ExternalTaskHandler {
+public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractTaskService.class);
 
@@ -54,4 +53,5 @@ abstract class AbstractTaskService implements ExternalTaskHandler {
             this.subscription.close();
         }
     }
+
 }
