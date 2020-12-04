@@ -20,7 +20,7 @@ public class PublishAssetDraftTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(ComputeAutomatedMetadataTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.publish-draft.lock-duration:20000}")
+    @Value("${opertusmundi.bpm.worker.tasks.publish-draft.lock-duration:10000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -52,7 +52,7 @@ public class PublishAssetDraftTaskService extends AbstractTaskService {
                 return;
             }
 
-            // Get draft key
+            // Get publisher key
             final String publisherKey = (String) externalTask.getVariable("publisherKey");
             if (StringUtils.isBlank(publisherKey)) {
                 logger.error("Expected publisher key to be non empty!");

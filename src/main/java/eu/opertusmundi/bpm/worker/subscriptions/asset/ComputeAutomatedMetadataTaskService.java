@@ -1,5 +1,6 @@
 package eu.opertusmundi.bpm.worker.subscriptions.asset;
 
+import java.nio.file.Path;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -11,9 +12,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
+import eu.opertusmundi.common.model.file.FilePathCommand;
+import eu.opertusmundi.common.model.file.FileSystemException;
+import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
+import eu.opertusmundi.common.model.profiler.DataProfilerServiceException;
+import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
+import eu.opertusmundi.common.model.profiler.DataProfilerStatusResponseDto;
+import eu.opertusmundi.common.model.profiler.EnumDataProfilerSourceType;
+import eu.opertusmundi.common.service.DataProfilerService;
+import eu.opertusmundi.common.service.FileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
@@ -21,8 +33,14 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(ComputeAutomatedMetadataTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.compute-automated-metadata.lock-duration:20000}")
+    @Value("${opertusmundi.bpm.worker.tasks.data-profiler.lock-duration:60000}")
     private Long lockDurationMillis;
+
+    @Autowired
+    private FileManager fileManager;
+
+    @Autowired
+    private DataProfilerService profilerService;
 
     @Autowired
     private ProviderAssetService providerAssetService;
@@ -44,25 +62,43 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
 
             logger.info("Received task {}", taskId);
 
-            // Get draft key
-            final String draftKey = (String) externalTask.getVariable("draftKey");
-            if (StringUtils.isBlank(draftKey)) {
-                logger.error("Expected draft key to be non empty!");
-
-                externalTaskService.handleFailure(externalTask, "Draft key is empty!", null, 0, 0);
-                return;
-            }
-
-            // Get publisher key
-            final String publisherKey = (String) externalTask.getVariable("publisherKey");
-            if (StringUtils.isBlank(publisherKey)) {
-                logger.error("Expected publisher key to be non empty!");
-
-                externalTaskService.handleFailure(externalTask, "Publisher key is empty!", null, 0, 0);
-                return;
-            }
+            final String                     draftKey     = this.getDraftKey(externalTask, externalTaskService);
+            final String                     publisherKey = this.getPublisherKey(externalTask, externalTaskService);
+            final String                     source       = this.getSource(externalTask, externalTaskService);
+            final EnumDataProfilerSourceType type         = this.getType(externalTask, externalTaskService);
 
             logger.debug("Processing task {}: {}", taskId, externalTask);
+
+            final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(type, source);
+            final String                          ticket           = profilerResponse.getTicket();
+            DataProfilerStatusResponseDto         result           = null;
+            int                                   counter          = 0;
+
+            // TODO: Add a parameter for preventing infinite loops
+            while (counter++ < 100) {
+                // NOTE: Polling time must be less than lock duration
+                Thread.sleep(10000);
+
+                // Extend lock duration
+                externalTaskService.extendLock(externalTask, this.getLockDuration());
+
+                result = this.profilerService.getStatus(ticket);
+                if (result.isCompleted()) {
+                    break;
+                }
+            }
+
+            if (result != null && result.isCompleted() && result.isSuccess()) {
+                // Get metadata
+                final JsonNode endpointsResponse = this.profilerService.getMetadata(ticket);
+
+                // TODO: Update metadata
+                logger.warn(endpointsResponse.toString());
+            } else {
+                throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR,
+                    String.format("Data profiler operation [%s] has failed", ticket)
+                );
+            }
 
             // Update draft
             final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
@@ -77,6 +113,12 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task {}", taskId);
+        } catch (final DataProfilerServiceException ex) {
+            logger.error("[DATA PROFILER Service] Operation has failed", ex);
+
+            externalTaskService.handleFailure(
+                externalTask, "[DATA PROFILER Service] Operation has failed", ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
+            );
         } catch (final Exception ex) {
             logger.error("Unhandled error has occurred", ex);
 
@@ -87,6 +129,115 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
 
             return;
         }
+    }
+
+    private String getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+        final String draftKey = (String) externalTask.getVariable("draftKey");
+        if (StringUtils.isBlank(draftKey)) {
+            logger.error("Expected draft key to be non empty!");
+
+            throw this.buildVariableNotFoundException("draftKey");
+        }
+
+        return draftKey;
+    }
+
+    private String getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+        final String publisherKey = (String) externalTask.getVariable("publisherKey");
+        if (StringUtils.isBlank(publisherKey)) {
+            logger.error("Expected publisher key to be non empty!");
+
+            throw this.buildVariableNotFoundException("publisherKey");
+        }
+
+        return publisherKey;
+    }
+
+    private EnumDataProfilerSourceType getType(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
+    ) throws DataProfilerServiceException {
+        // Get source
+        final String sourceType = (String) externalTask.getVariable("sourceType");
+        if (StringUtils.isBlank(sourceType)) {
+            logger.error("Expected source to be non empty!");
+
+            throw this.buildVariableNotFoundException("sourceType");
+        }
+
+        try {
+            final EnumDataProfilerSourceType result = EnumDataProfilerSourceType.valueOf(sourceType);
+
+            return result;
+        } catch(final Exception ex) {
+            logger.error("Expected a valid source type!");
+
+            throw this.buildInvalidVariableValueException("sourceType", sourceType);
+        }
+    }
+
+    private String getSource(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
+    ) throws DataProfilerServiceException {
+        try {
+            // Get user id key
+            final String userId = (String) externalTask.getVariable("userId");
+            if (StringUtils.isBlank(userId)) {
+                logger.error("Expected user id to be non empty!");
+
+                throw this.buildVariableNotFoundException("userId");
+            }
+            // Get source
+            final String source = (String) externalTask.getVariable("source");
+            if (StringUtils.isBlank(source)) {
+                logger.error("Expected source to be non empty!");
+
+                throw this.buildVariableNotFoundException("source");
+            }
+
+            // Resolve source
+            final FilePathCommand command = FilePathCommand.builder()
+                .userId(Integer.parseInt(userId))
+                .path(source)
+                .build();
+
+            final Path path = this.fileManager.resolveFilePath(command);
+
+            return path.toString();
+        } catch(final FileSystemException ex) {
+            throw DataProfilerServiceException.builder()
+                .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
+                .message("Failed to resolve source file")
+                .errorDetails(ex.getMessage())
+                .build();
+        }
+    }
+
+    private DataProfilerServiceException buildVariableNotFoundException(String name) {
+        return this.buildVariableException(
+            DataProfilerServiceMessageCode.VARIABLE_NOT_FOUND,
+            "Variable not found",
+            String.format("Variable [%s] is empty", name)
+        );
+    }
+
+    private DataProfilerServiceException buildInvalidVariableValueException(String name, String value) {
+        return this.buildVariableException(
+            DataProfilerServiceMessageCode.INVALID_VARIABLE_VALUE,
+            "Invalid variable value",
+            String.format("Value [%s] is valied for variable [%s]", value, name)
+        );
+    }
+
+    private DataProfilerServiceException buildVariableException(
+        DataProfilerServiceMessageCode code, String message, String errorDetails
+    ) {
+        return  DataProfilerServiceException.builder()
+        .code(code)
+        .message(message)
+        .errorDetails(errorDetails)
+        .retries(0)
+        .retryTimeout(0L)
+        .build();
     }
 
 }
