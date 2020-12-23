@@ -20,6 +20,11 @@ public class IngestAssetDraftTaskService extends BaseIngestTaskService {
     }
 
     @Override
+    protected String getAssetKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        return "draftKey";
+    }
+
+    @Override
     protected final String getSourceVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         return "source";
     }

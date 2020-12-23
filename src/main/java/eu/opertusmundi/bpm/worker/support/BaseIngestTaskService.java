@@ -1,6 +1,7 @@
 package eu.opertusmundi.bpm.worker.support;
 
 import java.nio.file.Path;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.client.task.ExternalTask;
@@ -12,14 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.file.FilePathCommand;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.ingest.IngestServiceException;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestEndpointsResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
-import eu.opertusmundi.common.service.FileManager;
+import eu.opertusmundi.common.service.AssetFileManager;
 import eu.opertusmundi.common.service.IngestService;
 
 @Service
@@ -36,7 +36,7 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
     }
 
     @Autowired
-    private FileManager fileManager;
+    private AssetFileManager fileManager;
 
     @Autowired
     private IngestService ingestService;
@@ -110,15 +110,15 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
 
     private String getSource(ExternalTask externalTask, ExternalTaskService externalTaskService) throws IngestServiceException {
         try {
-            final String userIdVariableName = this.getUserIdVariableName(externalTask, externalTaskService);
+            final String assetKeyVariableName = this.getAssetKeyVariableName(externalTask, externalTaskService);
             final String sourceVariableName = this.getSourceVariableName(externalTask, externalTaskService);
 
-            // Get user id key
-            final String userId = (String) externalTask.getVariable(userIdVariableName);
-            if (StringUtils.isBlank(userId)) {
-                logger.error("Expected {} to be non empty!", userIdVariableName);
+            // Get draft key
+            final String draftKey = (String) externalTask.getVariable(assetKeyVariableName);
+            if (StringUtils.isBlank(draftKey)) {
+                logger.error("Expected asset key to be non empty!");
 
-                throw this.buildVariableNotFoundException(userIdVariableName);
+                throw this.buildVariableNotFoundException(assetKeyVariableName);
             }
             // Get source
             final String source = (String) externalTask.getVariable(sourceVariableName);
@@ -128,13 +128,7 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
                 throw this.buildVariableNotFoundException(sourceVariableName);
             }
 
-            // Resolve source
-            final FilePathCommand command = FilePathCommand.builder()
-                .userId(Integer.parseInt(userId))
-                .path(source)
-                .build();
-
-            final Path path = this.fileManager.resolveFilePath(command);
+            final Path path = this.fileManager.resolveFilePath(UUID.fromString(draftKey), source);
 
             return path.toString();
         } catch(final FileSystemException ex) {
@@ -157,6 +151,8 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
     }
 
     abstract protected String getUserIdVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
+
+    abstract protected String getAssetKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
 
     abstract protected String getSourceVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
 

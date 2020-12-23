@@ -17,15 +17,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
-import eu.opertusmundi.common.model.file.FilePathCommand;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceException;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
 import eu.opertusmundi.common.model.profiler.DataProfilerStatusResponseDto;
 import eu.opertusmundi.common.model.profiler.EnumDataProfilerSourceType;
+import eu.opertusmundi.common.service.AssetFileManager;
 import eu.opertusmundi.common.service.DataProfilerService;
-import eu.opertusmundi.common.service.FileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
@@ -37,7 +36,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
     private Long lockDurationMillis;
 
     @Autowired
-    private FileManager fileManager;
+    private AssetFileManager fileManager;
 
     @Autowired
     private DataProfilerService profilerService;
@@ -93,7 +92,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
                 final JsonNode endpointsResponse = this.profilerService.getMetadata(ticket);
 
                 // TODO: Update metadata
-                logger.warn(endpointsResponse.toString());
+                // logger.warn(endpointsResponse.toString());
             } else {
                 throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR,
                     String.format("Data profiler operation [%s] has failed", ticket)
@@ -179,12 +178,12 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws DataProfilerServiceException {
         try {
-            // Get user id key
-            final String userId = (String) externalTask.getVariable("userId");
-            if (StringUtils.isBlank(userId)) {
-                logger.error("Expected user id to be non empty!");
+            // Get draft key
+            final String draftKey = (String) externalTask.getVariable("draftKey");
+            if (StringUtils.isBlank(draftKey)) {
+                logger.error("Expected draft key to be non empty!");
 
-                throw this.buildVariableNotFoundException("userId");
+                throw this.buildVariableNotFoundException("draftKey");
             }
             // Get source
             final String source = (String) externalTask.getVariable("source");
@@ -195,12 +194,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
             }
 
             // Resolve source
-            final FilePathCommand command = FilePathCommand.builder()
-                .userId(Integer.parseInt(userId))
-                .path(source)
-                .build();
-
-            final Path path = this.fileManager.resolveFilePath(command);
+            final Path path = this.fileManager.resolveFilePath(UUID.fromString(draftKey), source);
 
             return path.toString();
         } catch(final FileSystemException ex) {
