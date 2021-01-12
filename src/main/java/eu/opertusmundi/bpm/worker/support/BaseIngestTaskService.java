@@ -140,16 +140,6 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
         }
     }
 
-    private IngestServiceException buildVariableNotFoundException(String name) {
-        return  IngestServiceException.builder()
-        .code(IngestServiceMessageCode.VARIABLE_NOT_FOUND)
-        .message("Variable not found")
-        .errorDetails(String.format("Variable [%s] is empty", name))
-        .retries(0)
-        .retryTimeout(0L)
-        .build();
-    }
-
     abstract protected String getUserIdVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
 
     abstract protected String getAssetKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);

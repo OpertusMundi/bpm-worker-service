@@ -114,6 +114,13 @@
             <artifactId>camunda-spin-dataformat-json-jackson</artifactId>
         </dependency>
 
+		<!-- Utilities -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		
     </dependencies>
 
     <build>

@@ -206,32 +206,4 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
         }
     }
 
-    private DataProfilerServiceException buildVariableNotFoundException(String name) {
-        return this.buildVariableException(
-            DataProfilerServiceMessageCode.VARIABLE_NOT_FOUND,
-            "Variable not found",
-            String.format("Variable [%s] is empty", name)
-        );
-    }
-
-    private DataProfilerServiceException buildInvalidVariableValueException(String name, String value) {
-        return this.buildVariableException(
-            DataProfilerServiceMessageCode.INVALID_VARIABLE_VALUE,
-            "Invalid variable value",
-            String.format("Value [%s] is valied for variable [%s]", value, name)
-        );
-    }
-
-    private DataProfilerServiceException buildVariableException(
-        DataProfilerServiceMessageCode code, String message, String errorDetails
-    ) {
-        return  DataProfilerServiceException.builder()
-        .code(code)
-        .message(message)
-        .errorDetails(errorDetails)
-        .retries(0)
-        .retryTimeout(0L)
-        .build();
-    }
-
 }

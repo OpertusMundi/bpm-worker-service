@@ -11,6 +11,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.Assert;
 
+import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.BpmnWorkerMessageCode;
+import eu.opertusmundi.common.model.MessageCode;
+
 public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractTaskService.class);
@@ -41,7 +45,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
             .handler(this)
             .open();
 
-        logger.info("Created subscripion for topic: {}", topic);
+        logger.info("Created subscription for topic: {}", topic);
     }
 
     @PreDestroy
@@ -49,9 +53,37 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         final String topic = this.getTopicName();
 
         if (this.subscription != null) {
-            logger.info("Removing subscripion for topic {}", topic);
+            logger.info("Removing subscription for topic {}", topic);
             this.subscription.close();
         }
+    }
+
+    protected BpmnWorkerException buildVariableNotFoundException(String name) {
+        return this.buildVariableException(
+            BpmnWorkerMessageCode.VARIABLE_NOT_FOUND,
+            "Variable not found",
+            String.format("Variable [%s] is empty", name)
+        );
+    }
+
+    protected BpmnWorkerException buildInvalidVariableValueException(String name, String value) {
+        return this.buildVariableException(
+            BpmnWorkerMessageCode.INVALID_VARIABLE_VALUE,
+            "Invalid variable value",
+            String.format("Value [%s] is not valid for variable [%s]", value, name)
+        );
+    }
+
+    protected BpmnWorkerException buildVariableException(
+            MessageCode code, String message, String errorDetails
+    ) {
+        return  BpmnWorkerException.builder()
+        .code(code)
+        .message(message)
+        .errorDetails(errorDetails)
+        .retries(0)
+        .retryTimeout(0L)
+        .build();
     }
 
 }
