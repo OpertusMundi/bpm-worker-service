@@ -4,9 +4,9 @@ OpertusMundi worker service for executing external tasks for business process wo
 
 ## Quickstart
 
-Copy configuration example files from `config-example/` into `src/main/resources/`, and edit to adjust to your needs.
+Copy configuration example files from `bpm-worker/config-example/` into `bpm-worker/src/main/resources/`, and edit to adjust to your needs.
 
-`cp -r config-example/* src/main/resources/`
+`cp -r bpm-worker/config-example/* bpm-worker/src/main/resources/`
 
 ### Database configuration
 
@@ -59,28 +59,10 @@ Build the project:
 
 Run application (with an embedded Tomcat 9.x server) as a standalone application:
 
-`java -jar target/opertus-mundi-bpm-worker-1.0.0.jar`
+`java -jar bpm-worker/target/opertus-mundi-bpm-worker-1.0.0.jar`
 
 or using the Spring Boot plugin:
 
-`mvn spring-boot:run`
+`cd bpm-worker && mvn spring-boot:run`
 
 The worker service requires an existing BPM server instance to successfully register for external tasks. 
-
-### Run as WAR on a servlet container
-
-Normally a WAR archive can be deployed at any servlet container. The following is only tested on a Tomcat 9.x.
-
-Open `pom.xml` and change packaging type to `war`, in order to produce a WAR archive.
-
-Ensure that the following section is not commented (to avoid packaging an embedded server):
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-tomcat</artifactId>
-    <scope>provided</scope>
-</dependency>    
-```
-
-Rebuild, and deploy generated `target/opertus-mundi-bpm-worker-1.0.0.war` on a Tomcat 9.x servlet container.
