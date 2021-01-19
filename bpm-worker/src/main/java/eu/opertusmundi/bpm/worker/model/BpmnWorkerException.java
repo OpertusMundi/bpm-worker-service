@@ -10,10 +10,10 @@ public class BpmnWorkerException extends ServiceException {
     private static final long serialVersionUID = 1L;
 
     @Getter
-    private String errorDetails;
+    private String errorDetails = null;
 
     @Getter
-    private int retries;
+    private int retries = 0;
 
     @Getter
     private long retryTimeout = 0;
@@ -30,7 +30,7 @@ public class BpmnWorkerException extends ServiceException {
     }
 
     public BpmnWorkerException(MessageCode code) {
-        super(code, "Operation failed");
+        super(code, "[BPMN Worker] Operation has failed");
     }
 
     public BpmnWorkerException(MessageCode code, String message) {
@@ -39,6 +39,16 @@ public class BpmnWorkerException extends ServiceException {
 
     public BpmnWorkerException(MessageCode code, String message, Throwable cause) {
         super(code, message, cause);
+    }
+    
+    public BpmnWorkerException(
+		MessageCode code, String message, Throwable cause, String errorDetails, int retries, long retryTimeout
+	) {
+        super(code, message, cause);
+        
+        this.errorDetails = errorDetails;
+        this.retries      = retries;
+        this.retryTimeout = retryTimeout;
     }
 
 }

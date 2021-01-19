@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import eu.opertusmundi.bpm.worker.support.BaseIngestTaskService;
 
 @Service
-public class IngestAssetDraftTaskService extends BaseIngestTaskService {
+public class IngestTaskService extends BaseIngestTaskService {
 
     @Override
     public String getTopicName() {

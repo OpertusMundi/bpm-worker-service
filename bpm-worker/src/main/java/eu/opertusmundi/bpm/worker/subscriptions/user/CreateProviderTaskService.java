@@ -62,18 +62,15 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
 
             logger.info("Completed task {}", taskId);
         } catch (final BpmnWorkerException ex) {
-            logger.error("[BPMN Worker] Operation has failed", ex);
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            externalTaskService.handleFailure(externalTask, "[BPMN Worker] Operation has failed", null, 0, 0);
+            externalTaskService.handleFailure(
+                externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
+            );
         } catch (final Exception ex) {
-            logger.error("Unhandled error has occurred", ex);
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            final int  retryCount   = 0;
-            final long retryTimeout = 2000L;
-
-            externalTaskService.handleFailure(externalTask, "Unhandled error has occurred", ex.getMessage(), retryCount, retryTimeout);
-
-            return;
+            this.handleError(externalTaskService, externalTask, ex);
         }
     }
 

@@ -4,7 +4,9 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.camunda.bpm.client.ExternalTaskClient;
+import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskHandler;
+import org.camunda.bpm.client.task.ExternalTaskService;
 import org.camunda.bpm.client.topic.TopicSubscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,10 @@ import eu.opertusmundi.common.model.MessageCode;
 public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractTaskService.class);
+
+    protected static final String DEFAULT_ERROR_MESSAGE = "[BPM Worker] Operation has failed";
+    protected static final int    DEFAULT_RETRY_COUNT   = 0;
+    protected static final long   DEFAULT_RETRY_TIMEOUT = 2000L;
 
     @Autowired
     protected ExternalTaskClient externalTaskClient;
@@ -86,4 +92,11 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         .build();
     }
 
+    
+    protected void handleError(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
+        externalTaskService.handleFailure(
+            externalTask, DEFAULT_ERROR_MESSAGE, ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
+        );
+    }
+    
 }

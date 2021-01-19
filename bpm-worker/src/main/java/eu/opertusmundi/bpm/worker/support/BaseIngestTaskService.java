@@ -12,9 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.file.FileSystemException;
-import eu.opertusmundi.common.model.ingest.IngestServiceException;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestEndpointsResponseDto;
@@ -79,9 +79,11 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
                 // TODO: Update endpoints
                 logger.warn(endpointsResponse.toString());
             } else {
-                throw new IngestServiceException(IngestServiceMessageCode.SERVICE_ERROR,
-                    String.format("Ingest operation [%s] has failed", ticket)
-                );
+            	throw BpmnWorkerException.builder()
+            		.code(IngestServiceMessageCode.SERVICE_ERROR)
+            		.message("[INGEST Service] Operation has failed")
+            		.errorDetails(String.format("Ticket: [%s]. Comment: [%s]", ticket, result.getComment()))
+            		.build();
             }
 
             // Complete task
@@ -92,26 +94,23 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task {}", taskId);
-        } catch (final IngestServiceException ex) {
-            logger.error("[INGEST Service] Operation has failed", ex);
+        } catch (final BpmnWorkerException ex) {
+            logger.error(String.format("[Ingest Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
 
             externalTaskService.handleFailure(
-                externalTask, "[INGEST Service] Operation has failed", ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
+                externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );
         } catch (final Exception ex) {
-            logger.error("Unhandled error has occurred", ex);
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            final int  retryCount   = 0;
-            final long retryTimeout = 2000L;
-
-            externalTaskService.handleFailure(externalTask, "Unhandled error has occurred", ex.getMessage(), retryCount, retryTimeout);
+            this.handleError(externalTaskService, externalTask, ex);
         }
     }
 
-    private String getSource(ExternalTask externalTask, ExternalTaskService externalTaskService) throws IngestServiceException {
+    private String getSource(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         try {
             final String assetKeyVariableName = this.getAssetKeyVariableName(externalTask, externalTaskService);
-            final String sourceVariableName = this.getSourceVariableName(externalTask, externalTaskService);
+            final String sourceVariableName   = this.getSourceVariableName(externalTask, externalTaskService);
 
             // Get draft key
             final String draftKey = (String) externalTask.getVariable(assetKeyVariableName);
@@ -132,7 +131,7 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
 
             return path.toString();
         } catch(final FileSystemException ex) {
-            throw IngestServiceException.builder()
+            throw BpmnWorkerException.builder()
                 .code(IngestServiceMessageCode.SOURCE_NOT_FOUND)
                 .message("Failed to resolve source file")
                 .errorDetails(ex.getMessage())

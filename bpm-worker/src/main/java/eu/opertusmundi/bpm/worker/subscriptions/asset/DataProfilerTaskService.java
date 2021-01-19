@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
@@ -28,9 +29,9 @@ import eu.opertusmundi.common.service.DataProfilerService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
-public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
+public class DataProfilerTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ComputeAutomatedMetadataTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DataProfilerTaskService.class);
 
     @Value("${opertusmundi.bpm.worker.tasks.data-profiler.lock-duration:60000}")
     private Long lockDurationMillis;
@@ -88,11 +89,9 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
             }
 
             if (result != null && result.isCompleted() && result.isSuccess()) {
-                // Get metadata
-                final JsonNode endpointsResponse = this.profilerService.getMetadata(ticket);
-
-                // TODO: Update metadata
-                // logger.warn(endpointsResponse.toString());
+                final JsonNode metadata = this.profilerService.getMetadata(ticket);
+                
+                providerAssetService.updateMetadata(UUID.fromString(publisherKey), UUID.fromString(draftKey), metadata);
             } else {
                 throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR,
                     String.format("Data profiler operation [%s] has failed", ticket)
@@ -112,25 +111,20 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task {}", taskId);
-        } catch (final DataProfilerServiceException ex) {
-            logger.error("[DATA PROFILER Service] Operation has failed", ex);
-
+        } catch (final BpmnWorkerException ex) {
+            logger.error(String.format("[Data Profiler Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            
             externalTaskService.handleFailure(
-                externalTask, "[DATA PROFILER Service] Operation has failed", ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
+                externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );
         } catch (final Exception ex) {
-            logger.error("Unhandled error has occurred", ex);
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            final int  retryCount   = 0;
-            final long retryTimeout = 2000L;
-
-            externalTaskService.handleFailure(externalTask, "Unhandled error has occurred", ex.getMessage(), retryCount, retryTimeout);
-
-            return;
+            this.handleError(externalTaskService, externalTask, ex);
         }
     }
-
-    private String getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+    
+    private String getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String draftKey = (String) externalTask.getVariable("draftKey");
         if (StringUtils.isBlank(draftKey)) {
             logger.error("Expected draft key to be non empty!");
@@ -141,7 +135,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
         return draftKey;
     }
 
-    private String getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+    private String getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String publisherKey = (String) externalTask.getVariable("publisherKey");
         if (StringUtils.isBlank(publisherKey)) {
             logger.error("Expected publisher key to be non empty!");
@@ -154,7 +148,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
 
     private EnumDataProfilerSourceType getType(
         ExternalTask externalTask, ExternalTaskService externalTaskService
-    ) throws DataProfilerServiceException {
+    ) throws BpmnWorkerException {
         // Get source
         final String sourceType = (String) externalTask.getVariable("sourceType");
         if (StringUtils.isBlank(sourceType)) {
@@ -176,7 +170,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
 
     private String getSource(
         ExternalTask externalTask, ExternalTaskService externalTaskService
-    ) throws DataProfilerServiceException {
+    ) throws BpmnWorkerException {
         try {
             // Get draft key
             final String draftKey = (String) externalTask.getVariable("draftKey");
@@ -198,7 +192,7 @@ public class ComputeAutomatedMetadataTaskService extends AbstractTaskService {
 
             return path.toString();
         } catch(final FileSystemException ex) {
-            throw DataProfilerServiceException.builder()
+            throw BpmnWorkerException.builder()
                 .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
                 .message("Failed to resolve source file")
                 .errorDetails(ex.getMessage())

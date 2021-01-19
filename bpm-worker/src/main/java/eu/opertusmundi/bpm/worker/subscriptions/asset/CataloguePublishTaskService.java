@@ -11,14 +11,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.service.AssetDraftException;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
-public class PublishAssetDraftTaskService extends AbstractTaskService {
+public class CataloguePublishTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(PublishAssetDraftTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(CataloguePublishTaskService.class);
 
     @Value("${opertusmundi.bpm.worker.tasks.publish-draft.lock-duration:10000}")
     private Long lockDurationMillis;
@@ -70,19 +70,16 @@ public class PublishAssetDraftTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task {}", taskId);
-        } catch (final AssetDraftException ex) {
-            logger.error("[CATALOGUE Service] Operation has failed", ex);
-
-            externalTaskService.handleFailure(externalTask, "[CATALOGUE Service] Operation has failed", null, 0, 0);
+        } catch (final BpmnWorkerException ex) {
+            logger.error(String.format("[Catalogue Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            
+            externalTaskService.handleFailure(
+                externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
+            );
         } catch (final Exception ex) {
-            logger.error("Unhandled error has occurred", ex);
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            final int  retryCount   = 0;
-            final long retryTimeout = 2000L;
-
-            externalTaskService.handleFailure(externalTask, "Unhandled error has occurred", ex.getMessage(), retryCount, retryTimeout);
-
-            return;
+            this.handleError(externalTaskService, externalTask, ex);
         }
     }
 
