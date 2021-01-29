@@ -82,9 +82,15 @@ public class DataProfilerTaskService extends AbstractTaskService {
                 // Extend lock duration
                 externalTaskService.extendLock(externalTask, this.getLockDuration());
 
-                result = this.profilerService.getStatus(ticket);
-                if (result.isCompleted()) {
-                    break;
+                try {
+                    result = this.profilerService.getStatus(ticket);
+                    
+                    if (result.isCompleted()) {
+                        break;
+                    }
+                } catch (Exception ex) {
+                    // Ignore exception since the remote server may not have
+                    // initialized the job 
                 }
             }
 
