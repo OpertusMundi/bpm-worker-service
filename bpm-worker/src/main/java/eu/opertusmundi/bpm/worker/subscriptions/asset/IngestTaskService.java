@@ -15,18 +15,13 @@ public class IngestTaskService extends BaseIngestTaskService {
     }
 
     @Override
-    protected final String getUserIdVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-        return "userId";
+    protected String getPublisherKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        return "publisherKey";
     }
-
+    
     @Override
     protected String getAssetKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         return "draftKey";
-    }
-
-    @Override
-    protected final String getSourceVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-        return "source";
     }
 
 }

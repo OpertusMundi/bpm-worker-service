@@ -1,6 +1,7 @@
 package eu.opertusmundi.bpm.worker.support;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -10,19 +11,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.file.FileSystemException;
+import eu.opertusmundi.common.model.asset.AssetDraftDto;
+import eu.opertusmundi.common.model.asset.AssetResourceDto;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestEndpointsResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
 import eu.opertusmundi.common.service.AssetFileManager;
 import eu.opertusmundi.common.service.IngestService;
+import eu.opertusmundi.common.service.ProviderAssetService;
 
-@Service
 public abstract class BaseIngestTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseIngestTaskService.class);
@@ -36,8 +37,11 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
     }
 
     @Autowired
-    private AssetFileManager fileManager;
+    private AssetFileManager assetFileManager;
 
+    @Autowired
+    private ProviderAssetService providerAssetService;
+    
     @Autowired
     private IngestService ingestService;
 
@@ -49,42 +53,23 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
             logger.info("Received task {}", taskId);
 
             this.preExecution(externalTask, externalTaskService);
+           
+            final UUID draftKey     = this.getDraftKey(externalTask, externalTaskService);
+            final UUID publisherKey = this.getPublisherKey(externalTask, externalTaskService);
+
+            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
+
+            final List<AssetResourceDto> resources = draft.getCommand().getResources();
 
             logger.debug("Processing task {}: {}", taskId, externalTask);
-
-            final String                          source         = this.getSource(externalTask, externalTaskService);
-            final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(source);
-            final String                          ticket         = ingestResponse.getTicket();
-            ServerIngestStatusResponseDto         result         = null;
-            int                                   counter        = 0;
-
-            // TODO: Add a parameter for preventing infinite loops
-            while (counter++ < 100) {
-                // NOTE: Polling time must be less than lock duration
-                Thread.sleep(30000);
-
-                // Extend lock duration
-                externalTaskService.extendLock(externalTask, this.getLockDuration());
-
-                result = this.ingestService.getStatus(ticket);
-                if (result.isCompleted()) {
-                    break;
-                }
-            }
-
-            if (result != null && result.isCompleted() && result.isSuccess()) {
-                // GET endpoints
-                final ServerIngestEndpointsResponseDto endpointsResponse = this.ingestService.getEndpoints(ticket);
-
+            
+            // Process all resources
+            for (AssetResourceDto resource : resources) {
+                final ServerIngestEndpointsResponseDto endpoints = this.ingest(externalTask, externalTaskService, publisherKey, draftKey, resource);
+                
                 // TODO: Update endpoints
-                logger.warn(endpointsResponse.toString());
-            } else {
-            	throw BpmnWorkerException.builder()
-            		.code(IngestServiceMessageCode.SERVICE_ERROR)
-            		.message("[INGEST Service] Operation has failed")
-            		.errorDetails(String.format("Ticket: [%s]. Comment: [%s]", ticket, result.getComment()))
-            		.build();
-            }
+                logger.warn(endpoints.toString());
+            }           
 
             // Complete task
             logger.debug("Completed task {}: {}", taskId, externalTask);
@@ -107,43 +92,76 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
         }
     }
 
-    private String getSource(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        try {
-            final String assetKeyVariableName = this.getAssetKeyVariableName(externalTask, externalTaskService);
-            final String sourceVariableName   = this.getSourceVariableName(externalTask, externalTaskService);
+    private ServerIngestEndpointsResponseDto ingest(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, 
+        UUID publisherKey, UUID draftKey, AssetResourceDto resource
+    ) throws InterruptedException {
+        
+        // Resolve path
+        final Path                            source         = this.assetFileManager.resolveResourcePath(publisherKey, draftKey, resource.getFileName());
+        final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(source.toString());
+        final String                          ticket         = ingestResponse.getTicket();
+        
+        ServerIngestStatusResponseDto         result         = null;
+        int                                   counter        = 0;
 
-            // Get draft key
-            final String draftKey = (String) externalTask.getVariable(assetKeyVariableName);
-            if (StringUtils.isBlank(draftKey)) {
-                logger.error("Expected asset key to be non empty!");
+        // TODO: Add a parameter for preventing infinite loops
+        while (counter++ < 100) {
+            // NOTE: Polling time must be less than lock duration
+            Thread.sleep(30000);
 
-                throw this.buildVariableNotFoundException(assetKeyVariableName);
+            // Extend lock duration
+            externalTaskService.extendLock(externalTask, this.getLockDuration());
+
+            result = this.ingestService.getStatus(ticket);
+            if (result.isCompleted()) {
+                break;
             }
-            // Get source
-            final String source = (String) externalTask.getVariable(sourceVariableName);
-            if (StringUtils.isBlank(source)) {
-                logger.error("Expected {} to be non empty!", sourceVariableName);
+        }
 
-                throw this.buildVariableNotFoundException(sourceVariableName);
-            }
+        if (result != null && result.isCompleted() && result.isSuccess()) {
+            // GET endpoints
+            final ServerIngestEndpointsResponseDto endpointsResponse = this.ingestService.getEndpoints(ticket);
 
-            final Path path = this.fileManager.resolveFilePath(UUID.fromString(draftKey), source);
-
-            return path.toString();
-        } catch(final FileSystemException ex) {
+            return endpointsResponse;            
+        } else {
             throw BpmnWorkerException.builder()
-                .code(IngestServiceMessageCode.SOURCE_NOT_FOUND)
-                .message("Failed to resolve source file")
-                .errorDetails(ex.getMessage())
+                .code(IngestServiceMessageCode.SERVICE_ERROR)
+                .message("[INGEST Service] Operation has failed")
+                .errorDetails(String.format("Ticket: [%s]. Comment: [%s]", ticket, result.getComment()))
                 .build();
         }
     }
+    
+    private UUID getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
+        final String name     = this.getAssetKeyVariableName(externalTask, externalTaskService);
+        final String draftKey = (String) externalTask.getVariable(name);
+        
+        if (StringUtils.isBlank(draftKey)) {
+            logger.error(String.format("Expected draft key [%s] to be non empty!", name));
 
-    abstract protected String getUserIdVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
+            throw this.buildVariableNotFoundException(name);
+        }
 
+        return UUID.fromString(draftKey);
+    }
+
+    private UUID getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
+        final String name         = this.getPublisherKeyVariableName(externalTask, externalTaskService);
+        final String publisherKey = (String) externalTask.getVariable(name);
+
+        if (StringUtils.isBlank(publisherKey)) {
+            logger.error(String.format("Expected publisher key [%s] to be non empty!", name));
+
+            throw this.buildVariableNotFoundException(name);
+        }
+
+        return UUID.fromString(publisherKey);
+    }
+
+    abstract protected String getPublisherKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
+    
     abstract protected String getAssetKeyVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
-
-    abstract protected String getSourceVariableName(ExternalTask externalTask, ExternalTaskService externalTaskService);
 
     protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
 
