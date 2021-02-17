@@ -20,7 +20,7 @@ import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestEndpointsResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
-import eu.opertusmundi.common.service.AssetFileManager;
+import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
@@ -37,7 +37,7 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
     }
 
     @Autowired
-    private AssetFileManager assetFileManager;
+    private DraftFileManager draftFileManager;
 
     @Autowired
     private ProviderAssetService providerAssetService;
@@ -98,7 +98,7 @@ public abstract class BaseIngestTaskService extends AbstractTaskService {
     ) throws InterruptedException {
         
         // Resolve path
-        final Path                            source         = this.assetFileManager.resolveResourcePath(publisherKey, draftKey, resource.getFileName());
+        final Path                            source         = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resource.getFileName());
         final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(source.toString());
         final String                          ticket         = ingestResponse.getTicket();
         

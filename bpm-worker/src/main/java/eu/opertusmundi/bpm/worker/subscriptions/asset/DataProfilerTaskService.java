@@ -23,6 +23,7 @@ import eu.opertusmundi.common.domain.AssetFileTypeEntity;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
 import eu.opertusmundi.common.model.asset.AssetResourceDto;
+import eu.opertusmundi.common.model.asset.EnumAssetSourceType;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
@@ -30,10 +31,9 @@ import eu.opertusmundi.common.model.profiler.DataProfilerOptions;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceException;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
 import eu.opertusmundi.common.model.profiler.DataProfilerStatusResponseDto;
-import eu.opertusmundi.common.model.profiler.EnumDataProfilerSourceType;
 import eu.opertusmundi.common.repository.AssetFileTypeRepository;
-import eu.opertusmundi.common.service.AssetFileManager;
 import eu.opertusmundi.common.service.DataProfilerService;
+import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
@@ -54,7 +54,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
     private Integer width;
     
     @Autowired
-    private AssetFileManager fileManager;
+    private DraftFileManager draftFileManager;
 
     @Autowired
     private DataProfilerService profilerService;
@@ -88,7 +88,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
             final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
             
             final List<AssetResourceDto>     resources = draft.getCommand().getResources();
-            final EnumDataProfilerSourceType type      = mapFormatToSourceType(draft.getCommand().getFormat());
+            final EnumAssetSourceType type      = mapFormatToSourceType(draft.getCommand().getFormat());
             
             logger.debug("Processing task {}: {}", taskId, externalTask);
 
@@ -99,7 +99,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
                 );
 
                 // Update metadata for the specific file
-                providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId().toString(), metadata);
+                providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
             }
 
             // Update draft status
@@ -130,7 +130,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
     
     private JsonNode profile(
         ExternalTask externalTask, ExternalTaskService externalTaskService,
-        UUID publisherKey, UUID draftKey, EnumDataProfilerSourceType type, String resource
+        UUID publisherKey, UUID draftKey, EnumAssetSourceType type, String resource
     ) throws InterruptedException {
         
         final DataProfilerOptions options = DataProfilerOptions.builder()
@@ -199,7 +199,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
         return UUID.fromString(publisherKey);
     }
 
-    private EnumDataProfilerSourceType mapFormatToSourceType(String format) throws BpmnWorkerException {
+    private EnumAssetSourceType mapFormatToSourceType(String format) throws BpmnWorkerException {
         final Optional<AssetFileTypeEntity> fileType = this.assetFileTypeRepository.findOneByFormat(format);
 
         if (fileType.isPresent()) {
@@ -216,7 +216,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
         ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String source
     ) throws BpmnWorkerException {
         try {
-            final Path path = this.fileManager.resolveResourcePath(publisherKey, draftKey, source);
+            final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, source);
             
             return path.toString();
         } catch(final FileSystemException ex) {
