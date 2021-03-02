@@ -2,6 +2,7 @@ package eu.opertusmundi.bpm.worker.config;
 
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 @Configuration
 @EnableFeignClients(
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
         eu.opertusmundi.common.feign.client._Marker.class,
     }
 )
+@PropertySource("classpath:config/feign-client.properties")
 public class FeignClientConfiguration {
 
     // Add any custom bean definitions here
