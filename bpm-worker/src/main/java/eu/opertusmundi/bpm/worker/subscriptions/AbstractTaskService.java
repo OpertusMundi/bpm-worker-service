@@ -1,8 +1,11 @@
 package eu.opertusmundi.bpm.worker.subscriptions;
 
+import java.util.UUID;
+
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
+import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.client.ExternalTaskClient;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskHandler;
@@ -99,4 +102,25 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         );
     }
     
+    protected String getVariableAsString(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String name
+    ) throws BpmnWorkerException {
+        final String value = (String) externalTask.getVariable(name);
+        if (StringUtils.isBlank(value)) {
+            logger.error("Expected non empty value for variable {}", name);
+
+            throw this.buildVariableNotFoundException(name);
+        }
+
+        return value;
+    }
+
+    protected UUID getVariableAsUUID(
+        ExternalTaskService externalTaskService, ExternalTask externalTask, String name
+    ) throws BpmnWorkerException {
+        final String value = this.getVariableAsString(externalTask, externalTaskService, name);
+
+        return UUID.fromString(value);
+    }
+        
 }

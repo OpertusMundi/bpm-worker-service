@@ -14,6 +14,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
         eu.opertusmundi.common.config._Marker.class,
         eu.opertusmundi.common.repository._Marker.class,
         eu.opertusmundi.common.service._Marker.class,
+        eu.opertusmundi.common.util._Marker.class,
         eu.opertusmundi.bpm.worker.config._Marker.class,
         eu.opertusmundi.bpm.worker.subscriptions._Marker.class,
     }
