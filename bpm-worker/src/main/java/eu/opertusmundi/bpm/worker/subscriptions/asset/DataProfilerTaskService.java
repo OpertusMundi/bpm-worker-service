@@ -22,9 +22,11 @@ import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.domain.AssetFileTypeEntity;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
-import eu.opertusmundi.common.model.asset.AssetResourceDto;
 import eu.opertusmundi.common.model.asset.EnumAssetSourceType;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
+import eu.opertusmundi.common.model.asset.EnumResourceType;
+import eu.opertusmundi.common.model.asset.FileResourceDto;
+import eu.opertusmundi.common.model.asset.ResourceDto;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
 import eu.opertusmundi.common.model.profiler.DataProfilerOptions;
@@ -87,15 +89,19 @@ public class DataProfilerTaskService extends AbstractTaskService {
             
             final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
             
-            final List<AssetResourceDto>     resources = draft.getCommand().getResources();
+            final List<ResourceDto>   resources = draft.getCommand().getResources();
             final EnumAssetSourceType type      = mapFormatToSourceType(draft.getCommand().getFormat());
             
             logger.debug("Processing task {}: {}", taskId, externalTask);
 
             // Process all resources
-            for (AssetResourceDto resource : resources) {
-                final JsonNode metadata = this.profile(
-                    externalTask, externalTaskService, publisherKey, draftKey, type, resource.getFileName()
+            for (ResourceDto resource : resources) {
+                if (resource.getType() != EnumResourceType.FILE) {
+                    continue;
+                }
+                final FileResourceDto fileResource = (FileResourceDto) resource;
+                final JsonNode        metadata     = this.profile(
+                    externalTask, externalTaskService, publisherKey, draftKey, type, fileResource.getFileName()
                 );
 
                 // Update metadata for the specific file

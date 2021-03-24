@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.common.model.payment.UserRegistrationCommandDto;
 import eu.opertusmundi.common.service.PaymentService;
 import eu.opertusmundi.common.service.ProviderRegistrationService;
 
@@ -45,14 +46,15 @@ public class UpdateProviderTaskService extends AbstractCustomerTaskService {
 
             logger.info("Received task {}", taskId);
 
-            final UUID userKey         = this.getUserKey(externalTask, externalTaskService);
-            final UUID registrationKey = this.getRegistrationKey(externalTask, externalTaskService);
-
+            final UUID                       userKey         = this.getUserKey(externalTask, externalTaskService);
+            final UUID                       registrationKey = this.getRegistrationKey(externalTask, externalTaskService);
+            final UserRegistrationCommandDto command         = UserRegistrationCommandDto.of(userKey, registrationKey);
+            
             logger.debug("Processing task {}: {}", taskId, externalTask);
 
-            this.paymentService.updateUser(userKey, registrationKey);
+            this.paymentService.updateUser(command);
 
-            this.paymentService.updateBankAccount(userKey, registrationKey);
+            this.paymentService.updateBankAccount(command);
 
             this.registrationService.completeRegistration(userKey);
 

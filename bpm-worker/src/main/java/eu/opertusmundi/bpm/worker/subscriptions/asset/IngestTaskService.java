@@ -16,12 +16,17 @@ import org.springframework.stereotype.Service;
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
-import eu.opertusmundi.common.model.asset.AssetResourceDto;
+import eu.opertusmundi.common.model.asset.EnumResourceType;
+import eu.opertusmundi.common.model.asset.EnumServiceResourceType;
+import eu.opertusmundi.common.model.asset.FileResourceDto;
+import eu.opertusmundi.common.model.asset.ResourceDto;
+import eu.opertusmundi.common.model.asset.ServiceResourceCommandDto;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestPublishResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestResultResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
+import eu.opertusmundi.common.model.ingest.ServerIngestTicketResponseDto;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
@@ -68,21 +73,38 @@ public class IngestTaskService extends AbstractTaskService {
 
             final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
 
-            final List<AssetResourceDto> resources = draft.getCommand().getResources();
+            final List<ResourceDto> resources = draft.getCommand().getResources();
 
             logger.debug("Processing task {}: {}", taskId, externalTask);
             
             // Process all resources
-            for (AssetResourceDto resource : resources) {
-                final ServerIngestResultResponseDto ingestResult = this.ingest(externalTask, externalTaskService, publisherKey, draftKey, resource);
+            for (ResourceDto resource : resources) {
+                if (resource.getType() != EnumResourceType.FILE) {
+                    continue;
+                }
+                final FileResourceDto               fileResource = (FileResourceDto) resource;
+                final ServerIngestResultResponseDto ingestResult = this.ingest(
+                    externalTask, externalTaskService, publisherKey, draftKey, fileResource
+                );
                 
-                // TODO: Update table name
-                logger.warn(ingestResult.toString());
+                // Update metadata for the specific file
+                providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), ingestResult);
                 
                 if(published) {
                     final ServerIngestPublishResponseDto publishResult = this.publish(
-                        externalTask, externalTaskService, publisherKey, draftKey, resource, ingestResult.getTable()
+                        externalTask, externalTaskService, publisherKey, draftKey, fileResource, ingestResult.getTable()
                     );
+                    
+                    if (!StringUtils.isBlank(publishResult.getWms())) {
+                        providerAssetService.addServiceResource(ServiceResourceCommandDto.of(
+                                publisherKey, draftKey, EnumServiceResourceType.WMS, publishResult.getWms())
+                        );
+                    }
+                    if (!StringUtils.isBlank(publishResult.getWfs())) {
+                        providerAssetService.addServiceResource(ServiceResourceCommandDto.of(
+                            publisherKey, draftKey, EnumServiceResourceType.WFS, publishResult.getWfs())
+                        );
+                    }
                     
                     // TODO: Update services
                     logger.warn(publishResult.toString());
@@ -112,31 +134,41 @@ public class IngestTaskService extends AbstractTaskService {
 
     private ServerIngestResultResponseDto ingest(
         ExternalTask externalTask, ExternalTaskService externalTaskService, 
-        UUID publisherKey, UUID draftKey, AssetResourceDto resource
+        UUID publisherKey, UUID draftKey, FileResourceDto resource
     ) throws InterruptedException {
         // Resolve path
         final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resource.getFileName());
 
-        final UUID                            idempotentKey  = resource.getId();
-        final String                          tableName      = resource.getId().toString();
+        final UUID                    idempotentKey = resource.getId();
+        final String                  tableName     = resource.getId().toString();
+        String                        ticket;
+        ServerIngestStatusResponseDto result        = null;
+        int                           counter       = 0;
+
+        final ServerIngestTicketResponseDto ticketResponse = this.ingestService.getTicket(idempotentKey);
+
+        if (ticketResponse == null) {
+            final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(idempotentKey, path.toString(), tableName);
+            ticket = ingestResponse.getTicket();
+        } else {
+            ticket = ticketResponse.getTicket();
+            
+            result  = this.ingestService.getStatus(ticket);
+        }
         
-        final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(idempotentKey, path.toString(), tableName);
-        final String                          ticket         = ingestResponse.getTicket();
-        
-        ServerIngestStatusResponseDto result  = null;
-        int                           counter = 0;
+        if (result == null || !result.isCompleted()) {
+            // TODO: Add a parameter for preventing infinite loops
+            while (counter++ < 100) {
+                // NOTE: Polling time must be less than lock duration
+                Thread.sleep(30000);
 
-        // TODO: Add a parameter for preventing infinite loops
-        while (counter++ < 100) {
-            // NOTE: Polling time must be less than lock duration
-            Thread.sleep(30000);
+                // Extend lock duration
+                externalTaskService.extendLock(externalTask, this.getLockDuration());
 
-            // Extend lock duration
-            externalTaskService.extendLock(externalTask, this.getLockDuration());
-
-            result = this.ingestService.getStatus(ticket);
-            if (result.isCompleted()) {
-                break;
+                result = this.ingestService.getStatus(ticket);
+                if (result.isCompleted()) {
+                    break;
+                }
             }
         }
 
@@ -156,7 +188,7 @@ public class IngestTaskService extends AbstractTaskService {
 
     private ServerIngestPublishResponseDto publish(
         ExternalTask externalTask, ExternalTaskService externalTaskService, 
-        UUID publisherKey, UUID draftKey, AssetResourceDto resource, String tableName
+        UUID publisherKey, UUID draftKey, FileResourceDto resource, String tableName
     ) throws InterruptedException {
         final UUID idempotentKey = UUID.randomUUID();
 
