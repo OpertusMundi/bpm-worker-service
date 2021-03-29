@@ -97,12 +97,12 @@ public class IngestTaskService extends AbstractTaskService {
                     
                     if (!StringUtils.isBlank(publishResult.getWms())) {
                         providerAssetService.addServiceResource(ServiceResourceCommandDto.of(
-                                publisherKey, draftKey, EnumServiceResourceType.WMS, publishResult.getWms())
+                                publisherKey, draftKey, resource.getId(), EnumServiceResourceType.WMS, publishResult.getWms())
                         );
                     }
                     if (!StringUtils.isBlank(publishResult.getWfs())) {
                         providerAssetService.addServiceResource(ServiceResourceCommandDto.of(
-                            publisherKey, draftKey, EnumServiceResourceType.WFS, publishResult.getWfs())
+                            publisherKey, draftKey, resource.getId(), EnumServiceResourceType.WFS, publishResult.getWfs())
                         );
                     }
                     
