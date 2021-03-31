@@ -49,6 +49,86 @@ opertus-mundi.bpm.worker.rest.username=
 opertus-mundi.bpm.worker.rest.password=
 ```
 
+### Configure Feign clients
+
+BPM worker service is using [Feign](https://cloud.spring.io/spring-cloud-openfeign/reference/html/) clients for connecting to other system services. For each service, an endpoint must be set and optionally security must be configured.
+
+```properties
+#
+# Spring Cloud Feign clients
+#
+
+# Global secret for signing JWT tokens shared by all services
+opertusmundi.feign.jwt.secret=
+
+# Catalogue service (no authentication)
+opertusmundi.feign.catalogue.url=
+
+# BPM server (basic authentication)
+opertusmundi.feign.bpm-server.url=
+opertusmundi.feign.bpm-server.basic-auth.username=
+opertusmundi.feign.bpm-server.basic-auth.password=
+
+# Rating service (basic authentication)
+opertusmundi.feign.rating-service.url=
+opertusmundi.feign.rating-service.basic-auth.username=
+opertusmundi.feign.rating-service.basic-auth.password=
+
+# Email service (JWT token authentication)
+# Uses private/public key pair for signing/parsing tokens.
+opertusmundi.feign.email-service.url=
+
+# Message service (JWT token authentication)
+# Uses opertusmundi.feign.jwt.secret for signing tokens.
+opertusmundi.feign.message-service.url=
+
+# Ingest service
+opertusmundi.feign.ingest.url=
+
+# Transform service
+opertusmundi.feign.transform.url=
+
+# Data Profiler service
+opertusmundi.feign.data-profiler.url=
+
+# Persistent Identifier Service
+opertusmundi.feign.persistent-identifier-service.url=
+
+```
+
+### Configure file system
+
+BPM worker service requires access to the asset repository and user file system. The following directories must be accessible to the service:
+
+```properties
+#
+# File system
+#
+
+# Folder for creating temporary files
+opertusmundi.file-system.temp-dir=
+# Root folder for storing user file system
+opertusmundi.file-system.data-dir=
+# Root folder for storing draft files
+opertusmundi.file-system.draft-dir=
+# Root folder for storing asset files
+opertusmundi.file-system.asset-dir=
+```
+
+### Configure Payment service
+
+BPM worker service supports external tasks that invoke MANGOPAY payment solution API.
+
+```properties
+#
+# MangoPay
+#
+
+opertusmundi.payments.mangopay.base-url=
+opertusmundi.payments.mangopay.client-id=
+opertusmundi.payments.mangopay.client-password=
+```
+
 ### Build
 
 Build the project:
