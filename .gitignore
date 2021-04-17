@@ -2,6 +2,13 @@
 .project
 .classpath
 
+/.env
+/secrets
+/docker-compose.yml
+/files
+/logs
+/temp
+
 # Generated from mvn ant:ant
 maven-build.properties
 maven-build.xml

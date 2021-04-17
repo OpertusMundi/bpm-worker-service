@@ -1,0 +1,74 @@
+# vim: syntax=yaml:
+
+version: '3.6'
+services:
+
+  'app':
+    image: 'opertusmundi/bpm-worker-service:${VERSION}'
+    build:
+      context: .
+    volumes:
+    - type: 'bind'
+      source: ./secrets/
+      target: /secrets/
+      read_only: true
+    - type: 'bind'
+      source: ./logs
+      target: /app/logs
+    - type: 'volume'
+      source: files_assets
+      target: /var/local/opertusmundi/files/assets
+    - type: 'volume'
+      source: files_drafts
+      target: /var/local/opertusmundi/files/drafts
+    - type: 'volume'
+      source: files_users
+      target: /var/local/opertusmundi/files/users
+    - type: 'volume'
+      source: files_temp
+      target: /var/local/opertusmundi/files/temp
+    - type: 'volume'
+      source: ingest_input
+      target: /var/local/opertusmundi/ingest/input
+    environment:
+      JAVA_OPTS: '-server -Xmx512m -Xms128m -Djava.security.egd=file:///dev/urandom'
+      DATABASE_HOST: ${DATABASE_HOST:-localhost}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-opertusmundi}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-opertusmundi}
+      DATABASE_PASSWORD_FILE: /secrets/database-password
+      BPM_REST_BASE_URL: ${BPM_REST_BASE_URL}
+      BPM_REST_USERNAME: ${BPM_REST_USERNAME}
+      BPM_REST_PASSWORD_FILE: /secrets/bpm-rest-password 
+      JWT_SECRET_FILE: /secrets/jwt-secret
+      MANGOPAY_BASE_URL: https://api.sandbox.mangopay.com
+      MANGOPAY_CLIENT_ID: ${MANGOPAY_CLIENT_ID}
+      MANGOPAY_CLIENT_PASSWORD_FILE: /secrets/mangopay-client-password 
+      CATALOGUE_BASE_URL: ${CATALOGUE_BASE_URL}
+      INGEST_BASE_URL: ${INGEST_BASE_URL}
+      TRANSFORM_BASE_URL: ${TRANSFORM_BASE_URL}
+      MAILER_BASE_URL: ${MAILER_BASE_URL}
+      MESSENGER_BASE_URL: ${MESSENGER_BASE_URL}
+      RATING_BASE_URL: ${RATING_BASE_URL} 
+      RATING_USERNAME: ${RATING_USERNAME}
+      RATING_PASSWORD_FILE: /secrets/rating-password
+      DATA_PROFILER_BASE_URL: ${DATA_PROFILER_BASE_URL}
+      PID_BASE_URL: ${PID_BASE_URL}
+    ports:
+    - '8005:8005'
+    networks:
+      opertusmundi_network:
+        aliases:
+        - 'bpm-worker'
+
+volumes:
+  files_assets: {}
+  files_drafts: {}
+  files_users: {}
+  files_temp: {}
+  ingest_input: {}
+
+networks:
+  opertusmundi_network:
+    external: true
+
