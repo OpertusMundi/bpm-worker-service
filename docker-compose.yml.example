@@ -62,11 +62,19 @@ services:
         - 'bpm-worker'
 
 volumes:
-  files_assets: {}
-  files_drafts: {}
-  files_users: {}
+  files_assets:
+    external: true
+    name: opertusmundi_files_assets
+  files_drafts:
+    external: true
+    name: opertusmundi_files_drafts
+  files_users:
+    external: true
+    name: opertusmundi_files_users
   files_temp: {}
-  ingest_input: {}
+  ingest_input:
+    external: true
+    name: opertusmundi_ingest_input
 
 networks:
   opertusmundi_network:
