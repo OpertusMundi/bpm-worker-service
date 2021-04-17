@@ -1,5 +1,7 @@
 # OpertusMundi BPM Worker Service
 
+[![Build Status](https://ci.dev-1.opertusmundi.eu:9443/api/badges/OpertusMundi/bpm-worker-service/status.svg?ref=refs/heads/master)](https://ci.dev-1.opertusmundi.eu:9443/OpertusMundi/bpm-worker-service)
+
 OpertusMundi worker service for executing external tasks for business process workflows.
 
 ## Quickstart
