@@ -36,8 +36,7 @@ RUN mkdir config logs \
     && chgrp spring config logs \
     && chmod g=rwx config logs 
 
-ENV DATABASE_HOST="db" \
-    DATABASE_PORT="5432" \
+ENV DATABASE_URL="jdbc:postgresql://db:5432/opertusmundi" \
     DATABASE_USERNAME="spring" \
     DATABASE_PASSWORD_FILE="/secrets/database-password" \
     JWT_SECRET_FILE="/secrets/jwt-signing-key" \
@@ -55,7 +54,7 @@ ENV DATABASE_HOST="db" \
     RATING_BASE_URL="http://rating:8000/" \
     RATING_USERNAME="" \
     RATING_PASSWORD_FILE="/secrets/rating-password" \
-    DATA_PROFILER_BASE_URL="http://profile:8000/" \
+    PROFILE_BASE_URL="http://profile:8000/" \
     PID_BASE_URL="http://pid:8000/"
 
 VOLUME [ \

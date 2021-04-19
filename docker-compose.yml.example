@@ -32,10 +32,8 @@ services:
       target: /var/local/opertusmundi/ingest/input
     environment:
       JAVA_OPTS: '-server -Xmx512m -Xms128m -Djava.security.egd=file:///dev/urandom'
-      DATABASE_HOST: ${DATABASE_HOST:-localhost}
-      DATABASE_PORT: ${DATABASE_PORT:-5432}
-      DATABASE_NAME: ${DATABASE_NAME:-opertusmundi}
-      DATABASE_USERNAME: ${DATABASE_USERNAME:-opertusmundi}
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
       DATABASE_PASSWORD_FILE: /secrets/database-password
       BPM_REST_BASE_URL: ${BPM_REST_BASE_URL}
       BPM_REST_USERNAME: ${BPM_REST_USERNAME}
@@ -52,7 +50,7 @@ services:
       RATING_BASE_URL: ${RATING_BASE_URL} 
       RATING_USERNAME: ${RATING_USERNAME}
       RATING_PASSWORD_FILE: /secrets/rating-password
-      DATA_PROFILER_BASE_URL: ${DATA_PROFILER_BASE_URL}
+      PROFILE_BASE_URL: ${PROFILE_BASE_URL}
       PID_BASE_URL: ${PID_BASE_URL}
     ports:
     - '8005:8005'
