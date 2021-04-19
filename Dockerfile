@@ -61,7 +61,7 @@ VOLUME [ \
     "/var/local/opertusmundi/files/assets", \
     "/var/local/opertusmundi/files/users", \
     "/var/local/opertusmundi/files/drafts", \
-    "/var/local/opertusmundi/files/temp" \
+    "/var/local/opertusmundi/files/temp", \
     "/var/local/opertusmundi/ingest/input" ]
 
 USER spring
