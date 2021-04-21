@@ -78,7 +78,7 @@ steps:
        echo "opertusmundi.feign.jwt.secret = $${JWT_SECRET}";
     ) > ./config/application-testing.properties
   - mvn dependency:resolve -V -B
-  - mvn test -B 
+  - mvn test -B -DenableCiProfile 
   - mvn verify -B -DenableCiProfile
 
 - name: prepare-tags
