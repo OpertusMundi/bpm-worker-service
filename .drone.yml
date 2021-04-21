@@ -53,7 +53,7 @@ steps:
 
 - name: tests
   #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0.21
+  image: opertusmundi/java-commons-builder:1.0.22
   when:
     event:
     - push
