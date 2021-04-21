@@ -7,6 +7,7 @@ environment:
   DATABASE_HOST: postgres-1
   DATABASE_NAME: opertusmundi
   DATABASE_USER: opertusmundi
+  BPM_REST_USERNAME: admin
 
 #
 # Steps
@@ -71,13 +72,13 @@ steps:
        echo "spring.datasource.password=$${DATABASE_PASSWORD}";
        echo
        echo "opertus-mundi.bpm.worker.rest.base-url = http://bpm-server:8000/engine-rest";
-       echo "opertus-mundi.bpm.worker.rest.username = admin";
+       echo "opertus-mundi.bpm.worker.rest.username = $${BPM_REST_USERNAME}";
        echo "opertus-mundi.bpm.worker.rest.password = $${BPM_REST_PASSWORD}";
        echo
        echo "opertusmundi.feign.jwt.secret = $${JWT_SECRET}";
     ) > ./config/application-testing.properties
   - mvn dependency:resolve -V -B
-  - mvn test -B -DenableCiProfile
+  - mvn test -B 
   - mvn verify -B -DenableCiProfile
 
 - name: prepare-tags
