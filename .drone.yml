@@ -51,7 +51,7 @@ steps:
 
 - name: resolve-deps
   #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/spring-boot-builder:1-2.3.4
+  image: opertusmundi/java-commons-builder:1.0.23
   when:
     event:
     - push
@@ -76,7 +76,7 @@ steps:
       from_secret: bpm_rest_password
   commands:
   # Generate configuration for testing
-  - mkdir ./config
+  - mkdir -p ./bpm-worker/config
   - config_file=./bpm-worker/config/application-testing.properties 
   - >-
     (  echo "spring.datasource.url=jdbc:postgresql://$${DATABASE_HOST}:5432/$${DATABASE_NAME}";
