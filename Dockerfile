@@ -16,8 +16,6 @@ RUN mvn -B -pl bpm-worker dependency:copy-dependencies -DincludeScope=runtime
 
 COPY bpm-worker/src /app/bpm-worker/src/
 COPY bpm-worker/resources /app/bpm-worker/resources
-# note: access to .git directory is needed only by Git-Commit-Id-Plugin Maven plugin 
-COPY .git /app/.git
 RUN mvn -B compile -DenableDockerBuildProfile
 
 

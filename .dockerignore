@@ -16,3 +16,4 @@ docker-compose.yml*
 compose.yml
 compose-testing.yml
 common/Dockerfile
+.git

@@ -21,6 +21,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <java.version>1.8</java.version>
+        <git-commit-id.skip>false</git-commit-id.skip>
     </properties>
 
     <profiles>
@@ -31,6 +32,9 @@
                     <name>enableCiProfile</name>
                 </property>
             </activation>
+            <properties>
+                <git-commit-id.skip>true</git-commit-id.skip>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -64,6 +68,9 @@
                     <name>enableDockerBuildProfile</name>
                 </property>
             </activation>
+            <properties>
+                <git-commit-id.skip>true</git-commit-id.skip>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -221,7 +228,8 @@
 					</execution>
 				</executions>
 				<configuration>
-					<generateGitPropertiesFile>true</generateGitPropertiesFile>
+					<skip>${git-commit-id.skip}</skip>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
 					<includeOnlyProperties>
 						<includeOnlyProperty>^git.build.(time|version)$</includeOnlyProperty>
