@@ -65,15 +65,12 @@ function _generate_configuration_for_clients()
     
     cat <<-EOD
 	opertusmundi.feign.jwt.secret = ${jwt_secret}
-	
 	opertus-mundi.bpm.worker.rest.base-url = ${bpm_rest_base_url}
 	opertus-mundi.bpm.worker.rest.username = ${bpm_rest_username}
 	opertus-mundi.bpm.worker.rest.password = ${bpm_rest_password}
-	
 	opertusmundi.payments.mangopay.base-url = ${mangopay_base_url}
 	opertusmundi.payments.mangopay.client-id = ${mangopay_client_id}
 	opertusmundi.payments.mangopay.client-password = ${mangopay_client_password}
-	
 	opertusmundi.feign.bpm-server.url = ${bpm_rest_base_url} 
 	opertusmundi.feign.bpm-server.basic-auth.username = ${bpm_rest_username}
 	opertusmundi.feign.bpm-server.basic-auth.password = ${bpm_rest_password}

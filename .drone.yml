@@ -39,8 +39,6 @@ steps:
   - psql -U postgres -l -A -t
   - psql -U $${DATABASE_USER} -d $${DATABASE_NAME} -A -t -c '\d'
 
-# Todo: setup BPM server
-
 - name: checkout-submodules
   image: alpine/git:v2.30.1
   when:
@@ -51,9 +49,21 @@ steps:
   - git submodule init
   - git submodule update --recursive
 
-- name: tests
+- name: resolve-deps
   #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0.22
+  image: opertusmundi/spring-boot-builder:1-2.3.4
+  when:
+    event:
+    - push
+  environment: {}
+  volumes:
+  - name: maven-repo
+    path: /root/.m2
+  commands:
+  - mvn -B dependency:resolve
+
+- name: generate-configuration-for-testing
+  image: busybox:1.32
   when:
     event:
     - push
@@ -65,7 +75,9 @@ steps:
     BPM_REST_PASSWORD:
       from_secret: bpm_rest_password
   commands:
+  # Generate configuration for testing
   - mkdir ./config
+  - config_file=./bpm-worker/config/application-testing.properties 
   - >-
     (  echo "spring.datasource.url=jdbc:postgresql://$${DATABASE_HOST}:5432/$${DATABASE_NAME}";
        echo "spring.datasource.username=$${DATABASE_USER}";
@@ -76,9 +88,32 @@ steps:
        echo "opertus-mundi.bpm.worker.rest.password = $${BPM_REST_PASSWORD}";
        echo
        echo "opertusmundi.feign.jwt.secret = $${JWT_SECRET}";
-    ) > ./config/application-testing.properties
-  - mvn dependency:resolve -V -B
-  - mvn test -B -DenableCiProfile 
+    ) | tee $${config_file}
+ 
+- name: tests
+  #image: maven:3.6.3-openjdk-8
+  image: opertusmundi/java-commons-builder:1.0.23
+  when:
+    event:
+    - push
+  volumes:
+  - name: maven-repo
+    path: /root/.m2
+  environment: {}
+  commands:
+  - mvn test -B -DenableCiProfile
+
+- name: integration-tests
+  #image: maven:3.6.3-openjdk-8
+  image: opertusmundi/java-commons-builder:1.0.23
+  when:
+    event:
+    - push
+  volumes:
+  - name: maven-repo
+    path: /root/.m2
+  environment: {}
+  commands:
   - mvn verify -B -DenableCiProfile
 
 - name: prepare-tags
@@ -103,7 +138,7 @@ steps:
       from_secret: docker_username
     password:
       from_secret: docker_password
-    repo: opertusmundi/bpm-worker-service
+    repo: opertusmundi/bpm-worker
     mirror: http://registry-mirror:5000
 
 - name: publish-image-2
@@ -117,7 +152,7 @@ steps:
       from_secret: registry_username
     password:
       from_secret: registry_password
-    repo: registry-dev-1-opertusmundi:30474/opertusmundi/bpm-worker-service
+    repo: registry-dev-1-opertusmundi:30474/opertusmundi/bpm-worker
     mirror: http://registry-mirror:5000
     registry: registry-dev-1-opertusmundi:30474
 
@@ -132,4 +167,12 @@ services:
   environment:
     POSTGRES_PASSWORD:
       from_secret: database_postgres_password
+
+#
+# Volumes
+#
+
+volumes:
+- name: maven-repo
+  temp: {}
 
