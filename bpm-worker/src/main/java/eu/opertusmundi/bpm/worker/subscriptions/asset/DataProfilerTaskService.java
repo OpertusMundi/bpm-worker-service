@@ -102,7 +102,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
                 final FileResourceDto     fileResource = (FileResourceDto) resource;
                 final EnumAssetSourceType type         = mapFormatToSourceType(fileResource.getFormat());
                 final JsonNode            metadata     = this.profile(
-                    externalTask, externalTaskService, publisherKey, draftKey, type, fileResource.getFileName()
+                    externalTask, externalTaskService, publisherKey, draftKey, type, fileResource
                 );
 
                 // Update metadata for the specific file
@@ -139,7 +139,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
     
     private JsonNode profile(
         ExternalTask externalTask, ExternalTaskService externalTaskService,
-        UUID publisherKey, UUID draftKey, EnumAssetSourceType type, String resource
+        UUID publisherKey, UUID draftKey, EnumAssetSourceType type, FileResourceDto resource
     ) throws InterruptedException {
         
         final DataProfilerOptions options = DataProfilerOptions.builder()
@@ -148,9 +148,10 @@ public class DataProfilerTaskService extends AbstractTaskService {
                 .width(this.width)
                 .build();
         
-        final String path = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource);
+        final UUID   idempotentKey = resource.getId();
+        final String path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
         
-        final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(type, path.toString(), options);
+        final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, type, path.toString(), options);
         final String                          ticket           = profilerResponse.getTicket();
         DataProfilerStatusResponseDto         result           = null;
         int                                   counter          = 0;
@@ -222,16 +223,16 @@ public class DataProfilerTaskService extends AbstractTaskService {
     }
     
     private String getResource(
-        ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String source
+        ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String resourceFileName
     ) throws BpmnWorkerException {
         try {
-            final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, source);
+            final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resourceFileName);
             
             return path.toString();
         } catch(final FileSystemException ex) {
             throw BpmnWorkerException.builder()
                 .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
-                .message("Failed to resolve source file")
+                .message(String.format("Failed to resolve resource file [%s]", resourceFileName))
                 .errorDetails(ex.getMessage())
                 .build();
         }

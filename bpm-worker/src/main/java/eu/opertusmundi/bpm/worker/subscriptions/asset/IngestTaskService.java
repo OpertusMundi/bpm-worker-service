@@ -19,12 +19,14 @@ import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
+import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestPublishResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestResultResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestTicketResponseDto;
+import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
@@ -126,8 +128,8 @@ public class IngestTaskService extends AbstractTaskService {
         UUID publisherKey, UUID draftKey, FileResourceDto resource
     ) throws InterruptedException {
         // Resolve path
-        final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resource.getFileName());
-
+        final String path = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
+        
         final UUID                    idempotentKey = resource.getId();
         final String                  tableName     = resource.getId().toString();
         String                        ticket;
@@ -221,6 +223,22 @@ public class IngestTaskService extends AbstractTaskService {
         }
 
         return Boolean.parseBoolean(published);
+    }
+    
+    private String getResource(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String resourceFileName
+    ) throws BpmnWorkerException {
+        try {
+            final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resourceFileName);
+            
+            return path.toString();
+        } catch(final FileSystemException ex) {
+            throw BpmnWorkerException.builder()
+                .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
+                .message(String.format("Failed to resolve resource file [%s]", resourceFileName))
+                .errorDetails(ex.getMessage())
+                .build();
+        }
     }
     
     protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
