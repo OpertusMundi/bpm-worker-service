@@ -17,10 +17,8 @@ import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
-import eu.opertusmundi.common.model.asset.EnumServiceResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
-import eu.opertusmundi.common.model.asset.ServiceResourceCommandDto;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestPublishResponseDto;
@@ -94,18 +92,9 @@ public class IngestTaskService extends AbstractTaskService {
                     final ServerIngestPublishResponseDto publishResult = this.publish(
                         externalTask, externalTaskService, publisherKey, draftKey, fileResource, ingestResult.getTable()
                     );
-                    
-                    if (!StringUtils.isBlank(publishResult.getWms())) {
-                        providerAssetService.addServiceResource(ServiceResourceCommandDto.of(
-                                publisherKey, draftKey, resource.getId(), EnumServiceResourceType.WMS, publishResult.getWms())
-                        );
-                    }
-                    if (!StringUtils.isBlank(publishResult.getWfs())) {
-                        providerAssetService.addServiceResource(ServiceResourceCommandDto.of(
-                            publisherKey, draftKey, resource.getId(), EnumServiceResourceType.WFS, publishResult.getWfs())
-                        );
-                    }
-                    
+
+                    providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), publishResult);
+
                     // TODO: Update services
                     logger.warn(publishResult.toString());
                 }

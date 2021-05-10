@@ -51,7 +51,7 @@ steps:
 
 - name: resolve-deps
   #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0.28
+  image: opertusmundi/java-commons-builder:1.0.30
   when:
     event:
     - push
@@ -92,7 +92,7 @@ steps:
  
 - name: tests
   #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0.28
+  image: opertusmundi/java-commons-builder:1.0.30
   when:
     event:
     - push
@@ -105,7 +105,7 @@ steps:
 
 - name: integration-tests
   #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0.28
+  image: opertusmundi/java-commons-builder:1.0.30
   when:
     event:
     - push

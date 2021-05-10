@@ -27,6 +27,7 @@ import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
+import eu.opertusmundi.common.model.catalogue.client.EnumType;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
 import eu.opertusmundi.common.model.profiler.DataProfilerOptions;
@@ -90,7 +91,6 @@ public class DataProfilerTaskService extends AbstractTaskService {
             final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
             
             final List<ResourceDto>   resources = draft.getCommand().getResources();
-            final EnumAssetSourceType type      = mapFormatToSourceType(draft.getCommand().getFormat());
             
             logger.debug("Processing task {}: {}", taskId, externalTask);
 
@@ -99,8 +99,9 @@ public class DataProfilerTaskService extends AbstractTaskService {
                 if (resource.getType() != EnumResourceType.FILE) {
                     continue;
                 }
-                final FileResourceDto fileResource = (FileResourceDto) resource;
-                final JsonNode        metadata     = this.profile(
+                final FileResourceDto     fileResource = (FileResourceDto) resource;
+                final EnumAssetSourceType type         = mapFormatToSourceType(fileResource.getFormat());
+                final JsonNode            metadata     = this.profile(
                     externalTask, externalTaskService, publisherKey, draftKey, type, fileResource.getFileName()
                 );
 
@@ -108,14 +109,16 @@ public class DataProfilerTaskService extends AbstractTaskService {
                 providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
             }
 
-            // Update draft status
-            final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
+            // Update draft status if this is not a SERVICE asset
+            if (draft.getCommand().getType() != EnumType.SERVICE) {
+                final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
 
-            command.setAssetKey(draftKey);
-            command.setPublisherKey(publisherKey);
-            command.setStatus(EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW);
+                command.setAssetKey(draftKey);
+                command.setPublisherKey(publisherKey);
+                command.setStatus(EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW);
 
-            this.providerAssetService.updateStatus(command);
+                this.providerAssetService.updateStatus(command);
+            }
 
             // Complete task
             externalTaskService.complete(externalTask);
