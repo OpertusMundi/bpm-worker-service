@@ -24,7 +24,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractTaskService.class);
 
-    protected static final String DEFAULT_ERROR_MESSAGE = "[BPM Worker] Operation has failed";
+    protected static final String DEFAULT_ERROR_MESSAGE = "Operation has failed";
     protected static final int    DEFAULT_RETRY_COUNT   = 0;
     protected static final long   DEFAULT_RETRY_TIMEOUT = 2000L;
 
@@ -54,7 +54,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
             .handler(this)
             .open();
 
-        logger.info("Created subscription for topic: {}", topic);
+        logger.info("Created subscription. [topic={}]", topic);
     }
 
     @PreDestroy
@@ -62,8 +62,8 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         final String topic = this.getTopicName();
 
         if (this.subscription != null) {
-            logger.info("Removing subscription for topic {}", topic);
             this.subscription.close();
+            logger.info("Removing subscription. [topic={}]", topic);
         }
     }
 
@@ -71,7 +71,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return this.buildVariableException(
             BpmnWorkerMessageCode.VARIABLE_NOT_FOUND,
             "Variable not found",
-            String.format("Variable [%s] is empty", name)
+            String.format("Variable is empty. [name=%s]", name)
         );
     }
 
@@ -79,7 +79,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return this.buildVariableException(
             BpmnWorkerMessageCode.INVALID_VARIABLE_VALUE,
             "Invalid variable value",
-            String.format("Value [%s] is not valid for variable [%s]", value, name)
+            String.format("Invalid variable value.[name=%s, value=%]", name, value)
         );
     }
 
@@ -107,7 +107,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     ) throws BpmnWorkerException {
         final String value = (String) externalTask.getVariable(name);
         if (StringUtils.isBlank(value)) {
-            logger.error("Expected non empty value for variable {}", name);
+            logger.error("Expected non empty variable value. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }

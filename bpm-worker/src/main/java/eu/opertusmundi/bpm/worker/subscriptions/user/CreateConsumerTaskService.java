@@ -44,13 +44,13 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
         try {
             final String taskId = externalTask.getId();
 
-            logger.info("Received task {}", taskId);
+            logger.info("Received task. [taskId={}]", taskId);
 
             final UUID                    userKey         = this.getUserKey(externalTask, externalTaskService);
             final UUID                    registrationKey = this.getRegistrationKey(externalTask, externalTaskService);
             final UserRegistrationCommand command         = UserRegistrationCommand.of(userKey, registrationKey);
 
-            logger.debug("Processing task {}: {}", taskId, externalTask);
+            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             this.paymentService.createUser(command);
 
@@ -60,7 +60,7 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
 
             externalTaskService.complete(externalTask);
 
-            logger.info("Completed task {}", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 

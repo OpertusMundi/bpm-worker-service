@@ -40,14 +40,14 @@ public class CatalogueHarvestTaskService extends AbstractTaskService {
         try {
             final String taskId = externalTask.getId();
 
-            logger.info("Received task {}", taskId);
+            logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
             final String            catalogueUrl       = this.getVariableAsString(externalTask, externalTaskService, "catalogueUrl");
             final String            catalogueTypeValue = this.getVariableAsString(externalTask, externalTaskService, "catalogueType");
             final EnumCatalogueType catalogueType      = EnumCatalogueType.valueOf(catalogueTypeValue);
             
-            logger.debug("Processing task {}: {}", taskId, externalTask);
+            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Harvest catalogue
             
@@ -57,9 +57,9 @@ public class CatalogueHarvestTaskService extends AbstractTaskService {
             // Complete task
             externalTaskService.complete(externalTask);
 
-            logger.info("Completed task {}", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("[Catalogue Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
             
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()

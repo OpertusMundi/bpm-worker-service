@@ -63,7 +63,7 @@ public class IngestTaskService extends AbstractTaskService {
         try {
             final String taskId = externalTask.getId();
 
-            logger.info("Received task {}", taskId);
+            logger.info("Received task. [taskId={}]", taskId);
 
             this.preExecution(externalTask, externalTaskService);
            
@@ -75,7 +75,7 @@ public class IngestTaskService extends AbstractTaskService {
 
             final List<ResourceDto> resources = draft.getCommand().getResources();
 
-            logger.debug("Processing task {}: {}", taskId, externalTask);
+            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
             
             // Process all resources
             for (ResourceDto resource : resources) {
@@ -103,15 +103,13 @@ public class IngestTaskService extends AbstractTaskService {
             }           
 
             // Complete task
-            logger.debug("Completed task {}: {}", taskId, externalTask);
-
             this.postExecution(externalTask, externalTaskService);
 
             externalTaskService.complete(externalTask);
 
-            logger.info("Completed task {}", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("[Ingest Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
 
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
@@ -191,7 +189,7 @@ public class IngestTaskService extends AbstractTaskService {
         final String draftKey = (String) externalTask.getVariable(name);
         
         if (StringUtils.isBlank(draftKey)) {
-            logger.error(String.format("Expected draft key [%s] to be non empty!", name));
+            logger.error("Expected draft key to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }
@@ -204,7 +202,7 @@ public class IngestTaskService extends AbstractTaskService {
         final String publisherKey = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(publisherKey)) {
-            logger.error(String.format("Expected publisher key [%s] to be non empty!", name));
+            logger.error("Expected publisher key to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }
@@ -217,7 +215,7 @@ public class IngestTaskService extends AbstractTaskService {
         final String published = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(published)) {
-            logger.error(String.format("Expected variable [%s] to be non empty!", name));
+            logger.error("Expected variable to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }

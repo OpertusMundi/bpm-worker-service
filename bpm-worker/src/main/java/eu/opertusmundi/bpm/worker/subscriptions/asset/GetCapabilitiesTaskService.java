@@ -54,7 +54,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         try {
             final String taskId = externalTask.getId();
 
-            logger.info("Received task {}", taskId);
+            logger.info("Received task. [taskId={}]", taskId);
 
             this.preExecution(externalTask, externalTaskService);
            
@@ -74,7 +74,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
             final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
 
-            logger.debug("Processing task {}: {}", taskId, externalTask);
+            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
             
             // Process all services
             for (ResourceIngestionDataDto service : services) {
@@ -114,15 +114,13 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             }    
 
             // Complete task
-            logger.debug("Completed task {}: {}", taskId, externalTask);
-
             this.postExecution(externalTask, externalTaskService);
 
             externalTaskService.complete(externalTask);
 
-            logger.info("Completed task {}", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("[GetCapabilities] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
 
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
@@ -139,7 +137,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         final String draftKey = (String) externalTask.getVariable(name);
         
         if (StringUtils.isBlank(draftKey)) {
-            logger.error(String.format("Expected draft key [%s] to be non empty!", name));
+            logger.error("Expected draft key to be non empty. [name=%s]", name);
 
             throw this.buildVariableNotFoundException(name);
         }
@@ -152,7 +150,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         final String publisherKey = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(publisherKey)) {
-            logger.error(String.format("Expected publisher key [%s] to be non empty!", name));
+            logger.error("Expected publisher key to be non empty. [name=%s]", name);
 
             throw this.buildVariableNotFoundException(name);
         }
@@ -165,7 +163,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         final String type = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(type)) {
-            logger.error(String.format("Expected variable [%s] to be non empty!", name));
+            logger.error("Expected variable to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }

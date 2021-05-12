@@ -41,12 +41,12 @@ public class CataloguePublishTaskService extends AbstractTaskService {
         try {
             final String taskId = externalTask.getId();
 
-            logger.info("Received task {}", taskId);
+            logger.info("Received task. [taskId={}]", taskId);
 
             // Get draft key
             final String draftKey = (String) externalTask.getVariable("draftKey");
             if (StringUtils.isBlank(draftKey)) {
-                logger.error("Expected draft key to be non empty!");
+                logger.error("Expected draft key to be non empty");
 
                 externalTaskService.handleFailure(externalTask, "Draft key is empty!", null, 0, 0);
                 return;
@@ -55,13 +55,13 @@ public class CataloguePublishTaskService extends AbstractTaskService {
             // Get publisher key
             final String publisherKey = (String) externalTask.getVariable("publisherKey");
             if (StringUtils.isBlank(publisherKey)) {
-                logger.error("Expected publisher key to be non empty!");
+                logger.error("Expected publisher key to be non empty");
 
-                externalTaskService.handleFailure(externalTask, "Publisher key is empty!", null, 0, 0);
+                externalTaskService.handleFailure(externalTask, "Publisher key is empty", null, 0, 0);
                 return;
             }
 
-            logger.debug("Processing task {}: {}", taskId, externalTask);
+            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Update draft
             this.providerAssetService.publishDraft(UUID.fromString(publisherKey), UUID.fromString(draftKey));
@@ -69,9 +69,9 @@ public class CataloguePublishTaskService extends AbstractTaskService {
             // Complete task
             externalTaskService.complete(externalTask);
 
-            logger.info("Completed task {}", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("[Catalogue Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
             
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()

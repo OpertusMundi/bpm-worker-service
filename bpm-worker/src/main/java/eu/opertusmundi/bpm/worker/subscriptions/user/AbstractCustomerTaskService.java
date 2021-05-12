@@ -32,7 +32,7 @@ public abstract class AbstractCustomerTaskService extends AbstractTaskService {
     protected UUID getRegistrationKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
         final String registrationKey = (String) externalTask.getVariable(VARIABLE_REGISTRATION_KEY);
         if (StringUtils.isBlank(registrationKey)) {
-            logger.error("Expected registration key to be non empty!");
+            logger.error("Expected registration key to be non empty");
 
             throw this.buildVariableNotFoundException(VARIABLE_REGISTRATION_KEY);
         }

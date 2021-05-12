@@ -51,13 +51,13 @@ public class NotificationSendTaskService extends AbstractTaskService {
         try {
             final String taskId = externalTask.getId();
 
-            logger.info("Received task {}", taskId);
+            logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
             final String notificationType          = this.getVariableAsString(externalTask, externalTaskService, "notificationType");
             final UUID   notificationRecipient     = this.getVariableAsUUID(externalTaskService, externalTask, "notificationRecipient");
             
-            logger.debug("Processing task {}: {}", taskId, externalTask);
+            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Build notification message
             final ServerNotificationCommandDto notification = ServerNotificationCommandDto.builder()
@@ -72,9 +72,9 @@ public class NotificationSendTaskService extends AbstractTaskService {
             // Complete task
             externalTaskService.complete(externalTask);
 
-            logger.info("Completed task {}", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("[Catalogue Service] Operation has failed. Error details: %s", ex.getErrorDetails()), ex);
+            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
             
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
