@@ -8,6 +8,8 @@
 /files
 /logs
 /temp
+/config
+/config.*
 
 # Generated from mvn ant:ant
 maven-build.properties
