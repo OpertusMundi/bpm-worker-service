@@ -17,13 +17,14 @@ import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
+import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
 import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
 import eu.opertusmundi.common.model.catalogue.client.EnumType;
 import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
-import eu.opertusmundi.common.util.GeoServerUtils;
-import eu.opertusmundi.common.util.GetCapabilitiesServiceMessageCode;
+import eu.opertusmundi.common.service.ogc.GeoServerUtils;
+import eu.opertusmundi.common.service.ogc.OgcServiceMessageCode;
 
 @Service
 public class GetCapabilitiesTaskService extends AbstractTaskService {
@@ -64,7 +65,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
             if (type != EnumType.SERVICE) {
                 throw BpmnWorkerException.builder()
-                    .code(GetCapabilitiesServiceMessageCode.TYPE_NOT_SUPPORTED)
+                    .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
                     .message(String.format("Asset type [%s] is not supported", type))
                     .build();
             }
@@ -92,7 +93,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 
                 if(resource == null) {
                     throw BpmnWorkerException.builder()
-                        .code(GetCapabilitiesServiceMessageCode.RESOURCE_NOT_CREATED)
+                        .code(OgcServiceMessageCode.RESOURCE_NOT_CREATED)
                         .message(String.format("Failed to load metadata for resource (layer) [%s]", service.getTableName()))
                         .build();
                 }
@@ -100,6 +101,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 // Link new resource with parent file resource
                 resource.setId(UUID.randomUUID());
                 resource.setParentId(service.getKey());
+                resource.setType(EnumResourceType.SERVICE);
 
                 this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);
                 
