@@ -97,23 +97,27 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                         .message(String.format("Failed to load metadata for resource (layer) [%s]", service.getTableName()))
                         .build();
                 }
-                
+
+                // Set service resource properties
+                resource.setEndpoint(endpoint.getUri());
+                resource.setServiceType(endpoint.getType());
+                resource.setType(EnumResourceType.SERVICE);
+
                 // Link new resource with parent file resource
                 resource.setId(UUID.randomUUID());
                 resource.setParentId(service.getKey());
-                resource.setType(EnumResourceType.SERVICE);
 
                 this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);
-                
-                // Update draft status
-                final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
+            }
+            
+            // Update draft status
+            final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
 
-                command.setAssetKey(draftKey);
-                command.setPublisherKey(publisherKey);
-                command.setStatus(EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW);
+            command.setAssetKey(draftKey);
+            command.setPublisherKey(publisherKey);
+            command.setStatus(EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW);
 
-                this.providerAssetService.updateStatus(command);
-            }    
+            this.providerAssetService.updateStatus(command);
 
             // Complete task
             this.postExecution(externalTask, externalTaskService);
