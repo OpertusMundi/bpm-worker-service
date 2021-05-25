@@ -1,8 +1,8 @@
 package eu.opertusmundi.bpm.worker.subscriptions.message;
 
+import java.util.Map;
 import java.util.UUID;
 
-import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
@@ -12,15 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.feign.client.MessageServiceFeignClient;
+import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.message.client.EnumNotificationType;
 import eu.opertusmundi.common.model.message.server.ServerNotificationCommandDto;
+import eu.opertusmundi.common.service.messaging.NotificationMessageHelper;
 
 @Service
 public class NotificationSendTaskService extends AbstractTaskService {
@@ -31,11 +29,11 @@ public class NotificationSendTaskService extends AbstractTaskService {
     private Long lockDurationMillis;
 
     @Autowired
-    private ObjectMapper objectMapper;
-    
-    @Autowired
     private ObjectProvider<MessageServiceFeignClient> messageClient;
 
+    @Autowired
+    private NotificationMessageHelper notificationMessageBuilder;
+    
     @Override
     public String getTopicName() {
         return "sendNotification";
@@ -54,17 +52,19 @@ public class NotificationSendTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
-            final String notificationType          = this.getVariableAsString(externalTask, externalTaskService, "notificationType");
-            final UUID   notificationRecipient     = this.getVariableAsUUID(externalTaskService, externalTask, "notificationRecipient");
+            final String               notificationType      = this.getVariableAsString(externalTask, externalTaskService, "notificationType");
+            final UUID                 notificationRecipient = this.getVariableAsUUID(externalTaskService, externalTask, "notificationRecipient");
+            final EnumNotificationType type                  = EnumNotificationType.valueOf(notificationType);
+            final Map<String, Object>  variables             = externalTask.getAllVariables();
             
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Build notification message
             final ServerNotificationCommandDto notification = ServerNotificationCommandDto.builder()
-                .data(this.collectNotificationData(externalTask, externalTaskService, notificationType))
+                .data(this.notificationMessageBuilder.collectNotificationData(type, variables))
                 .eventType(notificationType)
                 .recipient(notificationRecipient)
-                .text(this.composeNotificationText(externalTask, externalTaskService, notificationType))
+                .text(this.notificationMessageBuilder.composeNotificationText(type, variables))
                 .build();
             
             messageClient.getObject().sendNotification(notification);
@@ -79,6 +79,12 @@ public class NotificationSendTaskService extends AbstractTaskService {
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );
+        } catch (final ServiceException ex) {
+            logger.error(String.format("Operation has failed. [details=%s]", ex.getMessage()), ex);
+            
+            externalTaskService.handleFailure(
+                externalTask, ex.getMessage(), ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
+            );
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
@@ -86,42 +92,4 @@ public class NotificationSendTaskService extends AbstractTaskService {
         }
     }
     
-    private String composeNotificationText(ExternalTask externalTask, ExternalTaskService externalTaskService, String eventTypeValue) {
-        // TODO: Move messages to properties file or database store
-        
-        if (StringUtils.isBlank(eventTypeValue)) {
-            return null;
-        }
-
-        EnumNotificationType eventType = EnumNotificationType.valueOf(eventTypeValue);
-               
-        switch (eventType) {
-            case CATALOGUE_HARVEST_COMPLETED :
-                return String.format(
-                    "Harvest operation for catalogue %s has been completed",
-                    this.getVariableAsString(externalTask, externalTaskService, "catalogueUrl")
-                );
-        }
-        
-        return "";
-    }
-    
-    private JsonNode collectNotificationData(ExternalTask externalTask, ExternalTaskService externalTaskService, String eventTypeValue) {
-        if (StringUtils.isBlank(eventTypeValue)) {
-            return null;
-        }
-
-        EnumNotificationType eventType = EnumNotificationType.valueOf(eventTypeValue);
-
-        switch (eventType) {
-            case CATALOGUE_HARVEST_COMPLETED :
-                final ObjectNode data = objectMapper.createObjectNode();
-                data.put("catalogueUrl", this.getVariableAsString(externalTask, externalTaskService, "catalogueUrl"));
-                data.put("catalogueType", this.getVariableAsString(externalTask, externalTaskService, "catalogueType"));
-                return data;
-        }
-
-        return null;
-    }
-
 }
