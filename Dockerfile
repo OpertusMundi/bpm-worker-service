@@ -2,7 +2,7 @@
 
 #FROM maven:3.6.3-openjdk-8 as build-stage-1
 # see https://github.com/OpertusMundi/java-commons/blob/master/Dockerfile
-FROM opertusmundi/java-commons-builder:1.0.36 as build-stage-1
+FROM opertusmundi/java-commons-builder:1.0.38 as build-stage-1
 
 WORKDIR /app
 
@@ -32,7 +32,7 @@ WORKDIR /app
 
 RUN mkdir config logs \
     && chgrp spring config logs \
-    && chmod g=rwx config logs 
+    && chmod g=rwx config logs
 
 ENV DATABASE_URL="jdbc:postgresql://db:5432/opertusmundi" \
     DATABASE_USERNAME="spring" \
