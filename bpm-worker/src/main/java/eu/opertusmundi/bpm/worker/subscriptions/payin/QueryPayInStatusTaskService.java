@@ -53,7 +53,7 @@ public class QueryPayInStatusTaskService extends AbstractTaskService {
             
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            final PayInEntity payIn = this.payInRepository.findOneByKey(payInKey).orElse(null);
+            final PayInEntity payIn = this.payInRepository.findOneEntityByKey(payInKey).orElse(null);
             
             variables.put(payInStatusVariableName, payIn.getStatus().toString());
 
