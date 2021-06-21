@@ -14,24 +14,24 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.domain.PayInEntity;
 import eu.opertusmundi.common.model.ServiceException;
-import eu.opertusmundi.common.repository.PayInRepository;
+import eu.opertusmundi.common.model.payment.PayInDto;
+import eu.opertusmundi.common.service.PaymentService;
 
 @Service
-public class QueryPayInStatusTaskService extends AbstractTaskService {
+public class UpdatePayInStatusTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(QueryPayInStatusTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(UpdatePayInStatusTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.query-payin-status.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.update-payin-status.lock-duration:10000}")
     private Long lockDurationMillis;
 
     @Autowired
-    private PayInRepository payInRepository;
+    private PaymentService paymentService;
     
     @Override
     public String getTopicName() {
-        return "queryPayInStatus";
+        return "updatePayInStatus";
     }
 
     @Override
@@ -48,13 +48,15 @@ public class QueryPayInStatusTaskService extends AbstractTaskService {
 
             // Get parameters
             final UUID                payInKey                = UUID.fromString(externalTask.getBusinessKey());
+            final String              payInId                 = this.getVariableAsString(externalTask, externalTaskService, "payInId");
             final String              payInStatusVariableName = this.getVariableAsString(externalTask, externalTaskService, "payInStatusVariableName");
             final Map<String, Object> variables               = new HashMap<>();
             
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            final PayInEntity payIn = this.payInRepository.findOneEntityByKey(payInKey).orElse(null);
-            
+            // Update PayIn
+            final PayInDto    payIn = paymentService.updatePayIn(payInKey, payInId);
+            // Set PayIn updated status in the workflow instance
             variables.put(payInStatusVariableName, payIn.getStatus().toString());
 
             // Complete task

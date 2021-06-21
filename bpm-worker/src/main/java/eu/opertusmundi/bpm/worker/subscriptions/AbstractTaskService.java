@@ -79,7 +79,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return this.buildVariableException(
             BpmnWorkerMessageCode.INVALID_VARIABLE_VALUE,
             "Invalid variable value",
-            String.format("Invalid variable value.[name=%s, value=%]", name, value)
+            String.format("Invalid variable value.[name=%s, value=%s]", name, value)
         );
     }
 
@@ -95,13 +95,13 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         .build();
     }
 
-    
+
     protected void handleError(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
         externalTaskService.handleFailure(
             externalTask, DEFAULT_ERROR_MESSAGE, ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
         );
     }
-    
+
     protected String getVariableAsString(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
@@ -122,5 +122,5 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
         return UUID.fromString(value);
     }
-        
+
 }
