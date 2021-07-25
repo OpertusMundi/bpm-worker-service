@@ -3,7 +3,6 @@ package eu.opertusmundi.bpm.worker.subscriptions.message;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
@@ -26,6 +25,7 @@ import eu.opertusmundi.common.model.email.MailMessageCode;
 import eu.opertusmundi.common.model.email.MessageDto;
 import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.messaging.MailMessageHelper;
+import eu.opertusmundi.common.service.messaging.MailModelBuilder;
 import feign.FeignException;
 
 @Service
@@ -104,9 +104,13 @@ public class MailSendTaskService extends AbstractTaskService {
                 String.format("Recipient was not found [userKey=%s]", recipientKey)
             );
         }
-
+        
         // Compose message
-        final Map<String, Object>             model    = this.messageHelper.createModel(type, variables);
+        final MailModelBuilder builder = MailModelBuilder.builder()
+            .add("userKey", recipientKey)
+            .addAll(variables);
+
+        final Map<String, Object>             model    = this.messageHelper.createModel(type, builder);
         final EmailAddressDto                 sender   = this.messageHelper.getSender(type, model);
         final String                          subject  = this.messageHelper.composeSubject(type, model);
         final String                          template = this.messageHelper.resolveTemplate(type, model);
@@ -116,12 +120,8 @@ public class MailSendTaskService extends AbstractTaskService {
         message.setSubject(subject);
         message.setTemplate(template);
         message.setModel(model);
-
-        if (StringUtils.isBlank(account.getFirstName())) {
-            message.setRecipients(account.getEmail());
-        } else {
-            message.setRecipients(account.getEmail(), account.getFirstName());
-        }
+        
+        message.setRecipients(builder.getAddress());
 
         try {
             final ResponseEntity<BaseResponse> response = this.mailClient.getObject().sendMail(message);

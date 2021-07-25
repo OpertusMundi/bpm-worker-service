@@ -68,7 +68,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     }
 
     protected BpmnWorkerException buildVariableNotFoundException(String name) {
-        return this.buildVariableException(
+        return this.buildException(
             BpmnWorkerMessageCode.VARIABLE_NOT_FOUND,
             "Variable not found",
             String.format("Variable is empty. [name=%s]", name)
@@ -76,14 +76,14 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     }
 
     protected BpmnWorkerException buildInvalidVariableValueException(String name, String value) {
-        return this.buildVariableException(
+        return this.buildException(
             BpmnWorkerMessageCode.INVALID_VARIABLE_VALUE,
             "Invalid variable value",
             String.format("Invalid variable value.[name=%s, value=%s]", name, value)
         );
     }
 
-    protected BpmnWorkerException buildVariableException(
+    protected BpmnWorkerException buildException(
             MessageCode code, String message, String errorDetails
     ) {
         return  BpmnWorkerException.builder()
