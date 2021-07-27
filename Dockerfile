@@ -21,6 +21,8 @@ RUN mvn -B compile -DenableDockerBuildProfile
 
 FROM openjdk:8-jre-alpine
 
+ARG git_commit=
+
 COPY --from=build-stage-1 /app/bpm-worker/target/ /app/
 
 RUN addgroup spring && adduser -H -D -G spring spring
@@ -58,6 +60,8 @@ ENV MARKETPLACE_URL="" \
     ELASTICSEARCH_BASE_URL="http://elasticsearch:9200" \
     ELASTICSEARCH_INDICES_ASSETS_INDEX_NAME="assets" \
     ELASTICSEARCH_INDICES_PROFILES_INDEX_NAME="profiles"
+
+ENV GIT_COMMIT=${git_commit}
 
 VOLUME [ \
     "/var/local/opertusmundi/files/assets", \
