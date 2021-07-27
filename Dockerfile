@@ -34,7 +34,8 @@ RUN mkdir config logs \
     && chgrp spring config logs \
     && chmod g=rwx config logs
 
-ENV DATABASE_URL="jdbc:postgresql://db:5432/opertusmundi" \
+ENV MARKETPLACE_URL="" \
+    DATABASE_URL="jdbc:postgresql://db:5432/opertusmundi" \
     DATABASE_USERNAME="spring" \
     DATABASE_PASSWORD_FILE="/secrets/database-password" \
     JWT_SECRET_FILE="/secrets/jwt-signing-key" \

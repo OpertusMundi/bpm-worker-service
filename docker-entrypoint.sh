@@ -21,6 +21,9 @@ function _validate_database_url()
 runtime_profile=$(hostname | md5sum | head -c10)
 
 {
+    marketplace_url=$(echo ${MARKETPLACE_URL} | _validate_http_url "MARKETPLACE_URL")
+    echo "opertus-mundi.base-url = ${marketplace_url}"
+    
     database_url=$(echo ${DATABASE_URL} | _validate_database_url "DATABASE_URL")
     database_username=${DATABASE_USERNAME}
     database_password=$(cat ${DATABASE_PASSWORD_FILE} | tr -d '\n')
