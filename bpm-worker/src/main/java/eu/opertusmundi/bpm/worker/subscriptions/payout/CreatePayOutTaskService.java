@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.payment.PayOutDto;
 import eu.opertusmundi.common.service.PaymentService;
 
@@ -28,7 +27,7 @@ public class CreatePayOutTaskService extends AbstractTaskService {
 
     @Autowired
     private PaymentService paymentService;
-    
+
     @Override
     public String getTopicName() {
         return "createPayOut";
@@ -48,9 +47,9 @@ public class CreatePayOutTaskService extends AbstractTaskService {
 
             // Workaround for known issue with database write/read race
             // condition:
-            // PayOut database record may have not yet been committed. 
+            // PayOut database record may have not yet been committed.
             // Thread.sleep(5000);
-            
+
             // Get parameters
             final UUID                payOutKey = UUID.fromString(externalTask.getBusinessKey());
             final Map<String, Object> variables = new HashMap<>();
@@ -62,22 +61,16 @@ public class CreatePayOutTaskService extends AbstractTaskService {
             // Set PayOut status and id
             variables.put("payOutId", payOut.getProviderPayOut());
             variables.put("payOutStatus", payOut.getStatus().toString());
-            
+
             // Complete task
             externalTaskService.complete(externalTask, variables);
 
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-            );
-        } catch (final ServiceException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getMessage()), ex);
-            
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
             );
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -85,5 +78,5 @@ public class CreatePayOutTaskService extends AbstractTaskService {
             this.handleError(externalTaskService, externalTask, ex);
         }
     }
-    
+
 }

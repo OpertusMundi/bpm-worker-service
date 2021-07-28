@@ -82,12 +82,6 @@ public class MailSendTaskService extends AbstractTaskService {
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );
-        } catch (final ServiceException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getMessage()), ex);
-
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
-            );
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
@@ -104,7 +98,7 @@ public class MailSendTaskService extends AbstractTaskService {
                 String.format("Recipient was not found [userKey=%s]", recipientKey)
             );
         }
-        
+
         // Compose message
         final MailModelBuilder builder = MailModelBuilder.builder()
             .add("userKey", recipientKey)
@@ -120,7 +114,7 @@ public class MailSendTaskService extends AbstractTaskService {
         message.setSubject(subject);
         message.setTemplate(template);
         message.setModel(model);
-        
+
         message.setRecipients(builder.getAddress());
 
         try {

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.payment.PayInDto;
 import eu.opertusmundi.common.service.PaymentService;
 
@@ -28,7 +27,7 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
 
     @Autowired
     private PaymentService paymentService;
-    
+
     @Override
     public String getTopicName() {
         return "updatePayInStatus";
@@ -51,7 +50,7 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
             final String              payInId                 = this.getVariableAsString(externalTask, externalTaskService, "payInId");
             final String              payInStatusVariableName = this.getVariableAsString(externalTask, externalTaskService, "payInStatusVariableName");
             final Map<String, Object> variables               = new HashMap<>();
-            
+
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Update PayIn
@@ -65,15 +64,9 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-            );
-        } catch (final ServiceException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getMessage()), ex);
-            
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
             );
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -81,5 +74,5 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
             this.handleError(externalTaskService, externalTask, ex);
         }
     }
-    
+
 }

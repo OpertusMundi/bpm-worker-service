@@ -1,11 +1,13 @@
 package eu.opertusmundi.bpm.worker.subscriptions;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.camunda.bpm.client.ExternalTaskClient;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskHandler;
@@ -84,7 +86,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     }
 
     protected BpmnWorkerException buildException(
-            MessageCode code, String message, String errorDetails
+        MessageCode code, String message, String errorDetails
     ) {
         return  BpmnWorkerException.builder()
         .code(code)
@@ -95,10 +97,11 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         .build();
     }
 
-
     protected void handleError(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
+        final Throwable throwable = Optional.ofNullable(ExceptionUtils.getRootCause(ex)).orElse(ex);
+        
         externalTaskService.handleFailure(
-            externalTask, DEFAULT_ERROR_MESSAGE, ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
+            externalTask, DEFAULT_ERROR_MESSAGE, throwable.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
         );
     }
 

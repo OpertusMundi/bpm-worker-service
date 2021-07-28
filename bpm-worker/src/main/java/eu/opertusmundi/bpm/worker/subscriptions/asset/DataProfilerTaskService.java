@@ -55,7 +55,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
 
     @Value("${opertusmundi.data-profiler.parameters.width:1920}")
     private Integer width;
-    
+
     @Autowired
     private DraftFileManager draftFileManager;
 
@@ -64,7 +64,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
 
     @Autowired
     private ProviderAssetService providerAssetService;
-    
+
     @Autowired
     private AssetFileTypeRepository assetFileTypeRepository;
 
@@ -87,11 +87,11 @@ public class DataProfilerTaskService extends AbstractTaskService {
 
             final UUID                       draftKey     = this.getDraftKey(externalTask, externalTaskService);
             final UUID                       publisherKey = this.getPublisherKey(externalTask, externalTaskService);
-            
+
             final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
-            
+
             final List<ResourceDto>   resources = draft.getCommand().getResources();
-            
+
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Process all resources
@@ -126,7 +126,7 @@ public class DataProfilerTaskService extends AbstractTaskService {
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );
@@ -136,21 +136,21 @@ public class DataProfilerTaskService extends AbstractTaskService {
             this.handleError(externalTaskService, externalTask, ex);
         }
     }
-    
+
     private JsonNode profile(
         ExternalTask externalTask, ExternalTaskService externalTaskService,
         UUID publisherKey, UUID draftKey, EnumAssetSourceType type, FileResourceDto resource
     ) throws InterruptedException {
-        
+
         final DataProfilerOptions options = DataProfilerOptions.builder()
                 .aspectRatio(this.aspectRatio)
                 .height(this.height)
                 .width(this.width)
                 .build();
-        
+
         final UUID   idempotentKey = resource.getId();
         final String path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
-        
+
         final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, type, path.toString(), options);
         final String                          ticket           = profilerResponse.getTicket();
         DataProfilerStatusResponseDto         result           = null;
@@ -166,27 +166,27 @@ public class DataProfilerTaskService extends AbstractTaskService {
 
             try {
                 result = this.profilerService.getStatus(ticket);
-                
+
                 if (result.isCompleted()) {
                     break;
                 }
             } catch (Exception ex) {
                 // Ignore exception since the remote server may not have
-                // initialized the job 
+                // initialized the job
             }
         }
 
         if (result != null && result.isCompleted() && result.isSuccess()) {
             final JsonNode metadata = this.profilerService.getMetadata(ticket);
-            
+
             return metadata;
         } else {
             throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR,
-                String.format("Data profiler operation [%s] has failed", ticket)
+                String.format("Data profiler operation has failed [ticket=%s]", ticket)
             );
-        }        
+        }
     }
-    
+
     private UUID getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String draftKey = (String) externalTask.getVariable("draftKey");
         if (StringUtils.isBlank(draftKey)) {
@@ -221,19 +221,19 @@ public class DataProfilerTaskService extends AbstractTaskService {
             .message(String.format("Failed to map format [%s] to source type", format))
             .build();
     }
-    
+
     private String getResource(
         ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String resourceFileName
     ) throws BpmnWorkerException {
         try {
             final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resourceFileName);
-            
+
             return path.toString();
         } catch(final FileSystemException ex) {
             throw BpmnWorkerException.builder()
                 .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
                 .message(String.format("Failed to resolve resource file [%s]", resourceFileName))
-                .errorDetails(ex.getMessage())
+                .errorDetails(ex.getRootCause().getMessage())
                 .build();
         }
     }

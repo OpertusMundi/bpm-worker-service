@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.feign.client.MessageServiceFeignClient;
-import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.message.EnumNotificationType;
 import eu.opertusmundi.common.model.message.server.ServerNotificationCommandDto;
 import eu.opertusmundi.common.service.messaging.NotificationMessageHelper;
@@ -33,7 +32,7 @@ public class NotificationSendTaskService extends AbstractTaskService {
 
     @Autowired
     private NotificationMessageHelper notificationMessageBuilder;
-    
+
     @Override
     public String getTopicName() {
         return "sendNotification";
@@ -56,7 +55,7 @@ public class NotificationSendTaskService extends AbstractTaskService {
             final UUID                 notificationRecipient = this.getVariableAsUUID(externalTaskService, externalTask, "notificationRecipient");
             final EnumNotificationType type                  = EnumNotificationType.valueOf(notificationType);
             final Map<String, Object>  variables             = externalTask.getAllVariables();
-            
+
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Build notification message
@@ -66,7 +65,7 @@ public class NotificationSendTaskService extends AbstractTaskService {
                 .recipient(notificationRecipient)
                 .text(this.notificationMessageBuilder.composeNotificationText(type, variables))
                 .build();
-            
+
             messageClient.getObject().sendNotification(notification);
 
             // Complete task
@@ -75,15 +74,9 @@ public class NotificationSendTaskService extends AbstractTaskService {
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-            );
-        } catch (final ServiceException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getMessage()), ex);
-            
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
             );
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -91,5 +84,5 @@ public class NotificationSendTaskService extends AbstractTaskService {
             this.handleError(externalTaskService, externalTask, ex);
         }
     }
-    
+
 }

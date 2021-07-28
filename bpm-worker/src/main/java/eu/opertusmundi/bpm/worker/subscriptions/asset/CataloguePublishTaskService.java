@@ -72,7 +72,7 @@ public class CataloguePublishTaskService extends AbstractTaskService {
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );

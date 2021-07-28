@@ -41,7 +41,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
     @Autowired
     private ProviderAssetService providerAssetService;
-    
+
     @Autowired
     private GeoServerUtils geoServerUtils;
 
@@ -49,7 +49,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
     public String getTopicName() {
         return "getCapabilities";
     }
-    
+
     @Override
     public final void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         try {
@@ -58,7 +58,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             this.preExecution(externalTask, externalTaskService);
-           
+
             final UUID     draftKey     = this.getAssetKey(externalTask, externalTaskService);
             final UUID     publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumType type         = this.getType(externalTask, externalTaskService);
@@ -66,17 +66,17 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             if (type != EnumType.SERVICE) {
                 throw BpmnWorkerException.builder()
                     .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
-                    .message(String.format("Asset type [%s] is not supported", type))
+                    .message(String.format("Asset type is not supported [type=%s]", type))
                     .build();
             }
-            
+
             final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
 
             final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
             final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-            
+
             // Process all services
             for (ResourceIngestionDataDto service : services) {
                 // Find endpoint
@@ -90,11 +90,11 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
                     endpoint.getType(), endpoint.getUri(), service.getTableName().toString()
                 );
-                
+
                 if(resource == null) {
                     throw BpmnWorkerException.builder()
                         .code(OgcServiceMessageCode.RESOURCE_NOT_CREATED)
-                        .message(String.format("Failed to load metadata for resource (layer) [%s]", service.getTableName()))
+                        .message(String.format("Failed to load metadata for resource (layer) [tableName=%s]", service.getTableName()))
                         .build();
                 }
 
@@ -109,7 +109,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
                 this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);
             }
-            
+
             // Update draft status
             final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
 
@@ -141,7 +141,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
     private UUID getAssetKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String name     = "assetKey";
         final String draftKey = (String) externalTask.getVariable(name);
-        
+
         if (StringUtils.isBlank(draftKey)) {
             logger.error("Expected draft key to be non empty. [name=%s]", name);
 
@@ -176,7 +176,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
         return EnumType.fromString(type);
     }
-    
+
     protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
 
     }

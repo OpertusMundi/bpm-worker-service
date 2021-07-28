@@ -49,7 +49,7 @@ public class IngestTaskService extends AbstractTaskService {
 
     @Autowired
     private ProviderAssetService providerAssetService;
-    
+
     @Autowired
     private IngestService ingestService;
 
@@ -57,7 +57,7 @@ public class IngestTaskService extends AbstractTaskService {
     public String getTopicName() {
         return "ingest";
     }
-    
+
     @Override
     public final void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         try {
@@ -66,7 +66,7 @@ public class IngestTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             this.preExecution(externalTask, externalTaskService);
-           
+
             final UUID    draftKey     = this.getAssetKey(externalTask, externalTaskService);
             final UUID    publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final boolean published    = this.isPublished(externalTask, externalTaskService);
@@ -76,7 +76,7 @@ public class IngestTaskService extends AbstractTaskService {
             final List<ResourceDto> resources = draft.getCommand().getResources();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-            
+
             // Process all resources
             for (ResourceDto resource : resources) {
                 if (resource.getType() != EnumResourceType.FILE) {
@@ -86,10 +86,10 @@ public class IngestTaskService extends AbstractTaskService {
                 final ServerIngestResultResponseDto ingestResult = this.ingest(
                     externalTask, externalTaskService, publisherKey, draftKey, fileResource
                 );
-                
+
                 // Update metadata for the specific file
                 providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), ingestResult);
-                
+
                 if(published) {
                     final ServerIngestPublishResponseDto publishResult = this.publish(
                         externalTask, externalTaskService, publisherKey, draftKey, fileResource, ingestResult.getTable()
@@ -100,7 +100,7 @@ public class IngestTaskService extends AbstractTaskService {
                     // TODO: Update services
                     logger.warn(publishResult.toString());
                 }
-            }           
+            }
 
             // Complete task
             this.postExecution(externalTask, externalTaskService);
@@ -122,12 +122,12 @@ public class IngestTaskService extends AbstractTaskService {
     }
 
     private ServerIngestResultResponseDto ingest(
-        ExternalTask externalTask, ExternalTaskService externalTaskService, 
+        ExternalTask externalTask, ExternalTaskService externalTaskService,
         UUID publisherKey, UUID draftKey, FileResourceDto resource
     ) throws InterruptedException {
         // Resolve path
         final String path = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
-        
+
         final UUID                    idempotentKey = resource.getId();
         final String                  tableName     = resource.getId().toString();
         String                        ticket;
@@ -141,10 +141,10 @@ public class IngestTaskService extends AbstractTaskService {
             ticket = ingestResponse.getTicket();
         } else {
             ticket = ticketResponse.getTicket();
-            
+
             result  = this.ingestService.getStatus(ticket);
         }
-        
+
         if (result == null || !result.isCompleted()) {
             // TODO: Add a parameter for preventing infinite loops
             while (counter++ < 100) {
@@ -164,8 +164,8 @@ public class IngestTaskService extends AbstractTaskService {
         if (result != null && result.isCompleted() && result.isSuccess()) {
             // Get table name
             final ServerIngestResultResponseDto resultResponse = this.ingestService.getResult(ticket);
-           
-            return resultResponse;            
+
+            return resultResponse;
         } else {
             throw BpmnWorkerException.builder()
                 .code(IngestServiceMessageCode.SERVICE_ERROR)
@@ -176,18 +176,18 @@ public class IngestTaskService extends AbstractTaskService {
     }
 
     private ServerIngestPublishResponseDto publish(
-        ExternalTask externalTask, ExternalTaskService externalTaskService, 
+        ExternalTask externalTask, ExternalTaskService externalTaskService,
         UUID publisherKey, UUID draftKey, FileResourceDto resource, String tableName
     ) throws InterruptedException {
         final UUID idempotentKey = UUID.randomUUID();
 
         return this.ingestService.publish(idempotentKey, tableName);
     }
-  
+
     private UUID getAssetKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String name     = "assetKey";
         final String draftKey = (String) externalTask.getVariable(name);
-        
+
         if (StringUtils.isBlank(draftKey)) {
             logger.error("Expected draft key to be non empty. [name={}]", name);
 
@@ -222,23 +222,23 @@ public class IngestTaskService extends AbstractTaskService {
 
         return Boolean.parseBoolean(published);
     }
-    
+
     private String getResource(
         ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String resourceFileName
     ) throws BpmnWorkerException {
         try {
             final Path path = this.draftFileManager.resolveResourcePath(publisherKey, draftKey, resourceFileName);
-            
+
             return path.toString();
         } catch(final FileSystemException ex) {
             throw BpmnWorkerException.builder()
                 .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
                 .message(String.format("Failed to resolve resource file [%s]", resourceFileName))
-                .errorDetails(ex.getMessage())
+                .errorDetails(ex.getRootCause().getMessage())
                 .build();
         }
     }
-    
+
     protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
 
     }

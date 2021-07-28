@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.service.OrderFulfillmentService;
 
 @Service
@@ -25,7 +24,7 @@ public class UpdateConsumerAssetsTaskService extends AbstractTaskService {
 
     @Autowired
     private OrderFulfillmentService orderFulfillmentService;
-    
+
     @Override
     public String getTopicName() {
         return "updateConsumerAssets";
@@ -56,15 +55,9 @@ public class UpdateConsumerAssetsTaskService extends AbstractTaskService {
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-            );
-        } catch (final ServiceException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getMessage()), ex);
-            
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
             );
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -72,5 +65,5 @@ public class UpdateConsumerAssetsTaskService extends AbstractTaskService {
             this.handleError(externalTaskService, externalTask, ex);
         }
     }
-    
+
 }

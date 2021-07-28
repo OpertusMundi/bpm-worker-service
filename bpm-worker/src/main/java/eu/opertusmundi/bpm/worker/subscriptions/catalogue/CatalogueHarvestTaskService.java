@@ -46,11 +46,11 @@ public class CatalogueHarvestTaskService extends AbstractTaskService {
             final String            catalogueUrl       = this.getVariableAsString(externalTask, externalTaskService, "catalogueUrl");
             final String            catalogueTypeValue = this.getVariableAsString(externalTask, externalTaskService, "catalogueType");
             final EnumCatalogueType catalogueType      = EnumCatalogueType.valueOf(catalogueTypeValue);
-            
+
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Harvest catalogue
-            
+
             // TODO: Add polling ...
             this.catalogueClient.getObject().harvestCatalogue(catalogueUrl, catalogueType.getValue().toString());
 
@@ -60,7 +60,7 @@ public class CatalogueHarvestTaskService extends AbstractTaskService {
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
             logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-            
+
             externalTaskService.handleFailure(
                 externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
             );
