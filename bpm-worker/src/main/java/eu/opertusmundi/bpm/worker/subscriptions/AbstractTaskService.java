@@ -1,7 +1,7 @@
 package eu.opertusmundi.bpm.worker.subscriptions;
 
-import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -25,6 +25,8 @@ import eu.opertusmundi.common.model.MessageCode;
 public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractTaskService.class);
+
+    private static final String ErrorSeparator = "||";
 
     protected static final String DEFAULT_ERROR_MESSAGE = "Operation has failed";
     protected static final int    DEFAULT_RETRY_COUNT   = 0;
@@ -98,10 +100,16 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     }
 
     protected void handleError(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
-        final Throwable throwable = Optional.ofNullable(ExceptionUtils.getRootCause(ex)).orElse(ex);
+        final String details = StringUtils.join(
+            ExceptionUtils.getThrowableList(ex).stream()
+                .map(ExceptionUtils::getMessage)
+                .distinct()
+                .collect(Collectors.toList()),
+            ErrorSeparator
+        );
         
         externalTaskService.handleFailure(
-            externalTask, DEFAULT_ERROR_MESSAGE, throwable.getMessage(), DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
+            externalTask, DEFAULT_ERROR_MESSAGE, details, DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
         );
     }
 
