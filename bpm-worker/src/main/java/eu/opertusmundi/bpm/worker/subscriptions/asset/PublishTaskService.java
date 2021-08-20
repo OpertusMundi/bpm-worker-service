@@ -16,9 +16,9 @@ import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
-public class CataloguePublishTaskService extends AbstractTaskService {
+public class PublishTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CataloguePublishTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(PublishTaskService.class);
 
     @Value("${opertusmundi.bpm.worker.tasks.publish-draft.lock-duration:10000}")
     private Long lockDurationMillis;

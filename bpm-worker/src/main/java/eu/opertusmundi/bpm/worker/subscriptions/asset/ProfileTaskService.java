@@ -40,9 +40,9 @@ import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
 
 @Service
-public class DataProfilerTaskService extends AbstractTaskService {
+public class ProfileTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DataProfilerTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(ProfileTaskService.class);
 
     @Value("${opertusmundi.bpm.worker.tasks.data-profiler.lock-duration:60000}")
     private Long lockDurationMillis;
