@@ -29,7 +29,7 @@ import eu.opertusmundi.common.service.ogc.OgcServiceMessageCode;
 @Service
 public class GetCapabilitiesTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(IngestTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(GetCapabilitiesTaskService.class);
 
     @Value("${opertusmundi.bpm.worker.tasks.get-capabilities.lock-duration:60000}")
     private Long lockDurationMillis;
@@ -94,7 +94,10 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 if(resource == null) {
                     throw BpmnWorkerException.builder()
                         .code(OgcServiceMessageCode.RESOURCE_NOT_CREATED)
-                        .message(String.format("Failed to load metadata for resource (layer) [tableName=%s]", service.getTableName()))
+                        .message(String.format(
+                            "Failed to load metadata for resource (layer) [tableName=%s, type=%s, endpoint=%s]", 
+                            service.getTableName(), endpoint.getType(), endpoint.getUri()
+                        ))
                         .build();
                 }
 
