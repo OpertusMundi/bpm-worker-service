@@ -57,6 +57,7 @@ ENV MARKETPLACE_URL="" \
     RATING_PASSWORD_FILE="/secrets/rating-password" \
     PROFILE_BASE_URL="http://profile:8000/" \
     PID_BASE_URL="http://pid:8000/" \
+    GEOSERVER_BASE_URL="http://geoserver:8080/geoserver" \
     ELASTICSEARCH_BASE_URL="http://elasticsearch:9200" \
     ELASTICSEARCH_INDICES_ASSETS_INDEX_NAME="assets" \
     ELASTICSEARCH_INDICES_PROFILES_INDEX_NAME="profiles"
