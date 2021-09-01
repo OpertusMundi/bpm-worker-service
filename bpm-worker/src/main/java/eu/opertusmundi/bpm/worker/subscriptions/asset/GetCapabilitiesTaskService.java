@@ -84,7 +84,13 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
                 if (endpoint == null) {
                     // Service type not supported
-                    continue;
+                    throw BpmnWorkerException.builder()
+                        .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
+                        .message(String.format(
+                            "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]", 
+                            service.getTableName(), serviceType
+                        ))
+                        .build();
                 }
 
                 final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
