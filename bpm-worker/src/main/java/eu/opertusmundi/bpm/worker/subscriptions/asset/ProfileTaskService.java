@@ -181,9 +181,10 @@ public class ProfileTaskService extends AbstractTaskService {
 
             return metadata;
         } else {
-            throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR,
-                String.format("Data profiler operation has failed [ticket=%s]", ticket)
-            );
+            throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR, String.format(
+                "Data profiler operation has failed [ticket=%s, comment=%s]", 
+                ticket, result == null ? "" : result.getComment()
+            ));
         }
     }
 
