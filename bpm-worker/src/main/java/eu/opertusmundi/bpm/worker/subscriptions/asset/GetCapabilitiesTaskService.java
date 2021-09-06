@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
@@ -44,6 +46,9 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
     @Autowired
     private GeoServerUtils geoServerUtils;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     public String getTopicName() {
@@ -87,11 +92,13 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                     throw BpmnWorkerException.builder()
                         .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
                         .message(String.format(
-                            "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]", 
+                            "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]",
                             service.getTableName(), serviceType
                         ))
                         .build();
                 }
+
+                logger.info("Processing endpoint {}", endpoint.getUri());
 
                 final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
                     endpoint.getType(), endpoint.getUri(), service.getTableName().toString()
@@ -101,11 +108,13 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                     throw BpmnWorkerException.builder()
                         .code(OgcServiceMessageCode.RESOURCE_NOT_CREATED)
                         .message(String.format(
-                            "Failed to load metadata for resource (layer) [tableName=%s, type=%s, endpoint=%s]", 
+                            "Failed to load metadata for resource (layer) [tableName=%s, type=%s, endpoint=%s]",
                             service.getTableName(), endpoint.getType(), endpoint.getUri()
                         ))
                         .build();
                 }
+
+                logger.info("Service capabilities {}", objectMapper.writeValueAsString(resource));
 
                 // Set service resource properties
                 resource.setEndpoint(endpoint.getUri());
