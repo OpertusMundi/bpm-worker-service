@@ -126,6 +126,13 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 resource.setParentId(service.getKey());
 
                 this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);
+                
+                // Add delay to avoid database replication race condition
+                try {
+                    Thread.sleep(5000);
+                } catch (final InterruptedException e) {
+                    // Ignore
+                }
             }
 
             // Update draft status
