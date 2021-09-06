@@ -90,7 +90,9 @@ runtime_profile=$(hostname | md5sum | head -c10)
     echo "opertusmundi.elastic.profile-index.name = ${elasticsearch_indices_profiles_index_name}"
 
     geoserver_base_url=$(echo ${GEOSERVER_BASE_URL%/} | _validate_http_url "GEOSERVER_BASE_URL")
+    geoserver_workspace=${GEOSERVER_WORKSPACE}
     echo "opertusmundi.geoserver.endpoint = ${geoserver_base_url}"
+    echo "opertusmundi.geoserver.workspace = ${geoserver_workspace}"
 
 } > ./config/application-${runtime_profile}.properties
 
