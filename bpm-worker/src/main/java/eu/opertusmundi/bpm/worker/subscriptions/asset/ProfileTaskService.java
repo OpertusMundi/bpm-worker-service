@@ -38,6 +38,7 @@ import eu.opertusmundi.common.repository.AssetFileTypeRepository;
 import eu.opertusmundi.common.service.DataProfilerService;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
+import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
 public class ProfileTaskService extends AbstractTaskService {
@@ -110,18 +111,23 @@ public class ProfileTaskService extends AbstractTaskService {
             }
 
             // Update draft status if this is not a SERVICE asset
+            final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
+            
             if (draft.getCommand().getType() != EnumType.SERVICE) {
-                final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
+                final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
+                final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
 
                 command.setAssetKey(draftKey);
                 command.setPublisherKey(publisherKey);
-                command.setStatus(EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW);
+                command.setStatus(newStatus);
+
+                variables.variableAsString("status", newStatus.toString());
 
                 this.providerAssetService.updateStatus(command);
             }
 
             // Complete task
-            externalTaskService.complete(externalTask);
+            externalTaskService.complete(externalTask, variables.buildValues());
 
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {

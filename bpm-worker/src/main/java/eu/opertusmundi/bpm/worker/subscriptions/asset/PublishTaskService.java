@@ -1,5 +1,6 @@
 package eu.opertusmundi.bpm.worker.subscriptions.asset;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.service.ProviderAssetService;
+import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
 public class PublishTaskService extends AbstractTaskService {
@@ -67,7 +70,11 @@ public class PublishTaskService extends AbstractTaskService {
             this.providerAssetService.publishDraft(UUID.fromString(publisherKey), UUID.fromString(draftKey));
 
             // Complete task
-            externalTaskService.complete(externalTask);
+            final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
+                .variableAsString("status", EnumProviderAssetDraftStatus.PUBLISHED.toString())
+                .buildValues();
+            
+            externalTaskService.complete(externalTask, variables);
 
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {

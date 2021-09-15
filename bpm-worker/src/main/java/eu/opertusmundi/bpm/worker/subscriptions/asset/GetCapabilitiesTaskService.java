@@ -1,6 +1,7 @@
 package eu.opertusmundi.bpm.worker.subscriptions.asset;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -27,6 +28,7 @@ import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.ogc.GeoServerUtils;
 import eu.opertusmundi.common.service.ogc.OgcServiceMessageCode;
+import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
 public class GetCapabilitiesTaskService extends AbstractTaskService {
@@ -136,18 +138,23 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             }
 
             // Update draft status
-            final AssetDraftSetStatusCommandDto command = new AssetDraftSetStatusCommandDto();
+            final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
+            final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
 
             command.setAssetKey(draftKey);
             command.setPublisherKey(publisherKey);
-            command.setStatus(EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW);
+            command.setStatus(newStatus);
 
             this.providerAssetService.updateStatus(command);
 
             // Complete task
+            final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
+                .variableAsString("status", newStatus.toString())
+                .buildValues();
+            
             this.postExecution(externalTask, externalTaskService);
 
-            externalTaskService.complete(externalTask);
+            externalTaskService.complete(externalTask, variables);
 
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final BpmnWorkerException ex) {
