@@ -165,7 +165,7 @@ public class ProfileTaskService extends AbstractTaskService {
         // TODO: Add a parameter for preventing infinite loops
         while (counter++ < 100) {
             // NOTE: Polling time must be less than lock duration
-            Thread.sleep(10000);
+            Thread.sleep(15000);
 
             // Extend lock duration
             externalTaskService.extendLock(externalTask, this.getLockDuration());
