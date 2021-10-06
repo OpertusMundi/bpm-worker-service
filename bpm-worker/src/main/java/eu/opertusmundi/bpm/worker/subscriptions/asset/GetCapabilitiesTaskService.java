@@ -22,8 +22,8 @@ import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
+import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
-import eu.opertusmundi.common.model.catalogue.client.EnumType;
 import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.ogc.GeoServerUtils;
@@ -66,11 +66,11 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
             this.preExecution(externalTask, externalTaskService);
 
-            final UUID     draftKey     = this.getAssetKey(externalTask, externalTaskService);
-            final UUID     publisherKey = this.getPublisherKey(externalTask, externalTaskService);
-            final EnumType type         = this.getType(externalTask, externalTaskService);
+            final UUID          draftKey     = this.getAssetKey(externalTask, externalTaskService);
+            final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
+            final EnumAssetType type         = this.getType(externalTask, externalTaskService);
 
-            if (type != EnumType.SERVICE) {
+            if (type != EnumAssetType.SERVICE) {
                 throw BpmnWorkerException.builder()
                     .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
                     .message(String.format("Asset type is not supported [type=%s]", type))
@@ -189,7 +189,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         return UUID.fromString(publisherKey);
     }
 
-    private EnumType getType(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
+    private EnumAssetType getType(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String name      = "type";
         final String type = (String) externalTask.getVariable(name);
 
@@ -199,7 +199,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             throw this.buildVariableNotFoundException(name);
         }
 
-        return EnumType.fromString(type);
+        return EnumAssetType.fromString(type);
     }
 
     protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {

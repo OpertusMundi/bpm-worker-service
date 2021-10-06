@@ -3,7 +3,6 @@ package eu.opertusmundi.bpm.worker.subscriptions.asset;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -19,22 +18,19 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.domain.AssetFileTypeEntity;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
-import eu.opertusmundi.common.model.asset.EnumAssetSourceType;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
-import eu.opertusmundi.common.model.catalogue.client.EnumType;
+import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
 import eu.opertusmundi.common.model.profiler.DataProfilerOptions;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceException;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
 import eu.opertusmundi.common.model.profiler.DataProfilerStatusResponseDto;
-import eu.opertusmundi.common.repository.AssetFileTypeRepository;
 import eu.opertusmundi.common.service.DataProfilerService;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
@@ -65,9 +61,6 @@ public class ProfileTaskService extends AbstractTaskService {
 
     @Autowired
     private ProviderAssetService providerAssetService;
-
-    @Autowired
-    private AssetFileTypeRepository assetFileTypeRepository;
 
     @Override
     public String getTopicName() {
@@ -100,9 +93,9 @@ public class ProfileTaskService extends AbstractTaskService {
                 if (resource.getType() != EnumResourceType.FILE) {
                     continue;
                 }
-                final FileResourceDto     fileResource = (FileResourceDto) resource;
-                final EnumAssetSourceType type         = mapFormatToSourceType(fileResource.getFormat());
-                final JsonNode            metadata     = this.profile(
+                final FileResourceDto fileResource = (FileResourceDto) resource;
+                final EnumAssetType   type         = fileResource.getCategory();
+                final JsonNode        metadata     = this.profile(
                     externalTask, externalTaskService, publisherKey, draftKey, type, fileResource
                 );
 
@@ -113,7 +106,7 @@ public class ProfileTaskService extends AbstractTaskService {
             // Update draft status if this is not a SERVICE asset
             final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
             
-            if (draft.getCommand().getType() != EnumType.SERVICE) {
+            if (draft.getCommand().getType() != EnumAssetType.SERVICE) {
                 final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
                 final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
 
@@ -145,19 +138,25 @@ public class ProfileTaskService extends AbstractTaskService {
 
     private JsonNode profile(
         ExternalTask externalTask, ExternalTaskService externalTaskService,
-        UUID publisherKey, UUID draftKey, EnumAssetSourceType type, FileResourceDto resource
+        UUID publisherKey, UUID draftKey, EnumAssetType category, FileResourceDto resource
     ) throws InterruptedException {
 
         final DataProfilerOptions options = DataProfilerOptions.builder()
                 .aspectRatio(this.aspectRatio)
+                .crs(resource.getCrs())
+                .encoding(resource.getEncoding())
                 .height(this.height)
                 .width(this.width)
                 .build();
+        
+        if (resource.getCategory() == EnumAssetType.VECTOR) {
+            options.setGeometry("WKT");
+        }
 
         final UUID   idempotentKey = resource.getId();
         final String path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
 
-        final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, type, path.toString(), options);
+        final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, category, path.toString(), options);
         final String                          ticket           = profilerResponse.getTicket();
         DataProfilerStatusResponseDto         result           = null;
         int                                   counter          = 0;
@@ -214,19 +213,6 @@ public class ProfileTaskService extends AbstractTaskService {
         }
 
         return UUID.fromString(publisherKey);
-    }
-
-    private EnumAssetSourceType mapFormatToSourceType(String format) throws BpmnWorkerException {
-        final Optional<AssetFileTypeEntity> fileType = this.assetFileTypeRepository.findOneByFormat(format);
-
-        if (fileType.isPresent()) {
-            return fileType.get().getCategory();
-        }
-
-        throw BpmnWorkerException.builder()
-            .code(DataProfilerServiceMessageCode.FORMAT_NOT_SUPPORTED)
-            .message(String.format("Failed to map format [%s] to source type", format))
-            .build();
     }
 
     private String getResource(
