@@ -153,7 +153,7 @@ public class ProfileTaskService extends AbstractTaskService {
             options.setGeometry("WKT");
         }
 
-        final UUID   idempotentKey = resource.getId();
+        final String idempotentKey = resource.getId();
         final String path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
 
         final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, category, path.toString(), options);

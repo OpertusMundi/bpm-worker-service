@@ -128,7 +128,7 @@ public class IngestTaskService extends AbstractTaskService {
         // Resolve path
         final String path = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
 
-        final UUID                    idempotentKey = resource.getId();
+        final String                  idempotentKey = resource.getId();
         final String                  tableName     = resource.getId().toString();
         String                        ticket;
         ServerIngestStatusResponseDto result        = null;
@@ -179,7 +179,7 @@ public class IngestTaskService extends AbstractTaskService {
         ExternalTask externalTask, ExternalTaskService externalTaskService,
         UUID publisherKey, UUID draftKey, FileResourceDto resource, String tableName
     ) throws InterruptedException {
-        final UUID idempotentKey = UUID.randomUUID();
+        final String idempotentKey = UUID.randomUUID().toString();
 
         return this.ingestService.publish(idempotentKey, tableName);
     }
