@@ -124,7 +124,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 resource.setType(EnumResourceType.SERVICE);
 
                 // Link new resource with parent file resource
-                resource.setId(UUID.randomUUID());
+                resource.setId(UUID.randomUUID().toString());
                 resource.setParentId(service.getKey());
 
                 this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);               
