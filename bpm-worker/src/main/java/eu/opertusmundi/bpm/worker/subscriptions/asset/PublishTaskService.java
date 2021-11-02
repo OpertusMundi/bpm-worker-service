@@ -67,7 +67,7 @@ public class PublishTaskService extends AbstractTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Update draft
-            this.providerAssetService.publishDraft(UUID.fromString(publisherKey), UUID.fromString(draftKey));
+            this.providerAssetService.publishDraft(UUID.fromString(publisherKey), UUID.fromString(publisherKey), UUID.fromString(draftKey));
 
             // Complete task
             final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()

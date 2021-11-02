@@ -26,7 +26,7 @@ public class ActivateAccountTakService extends AbstractTaskService {
     private static final Logger logger = LoggerFactory.getLogger(ActivateAccountTakService.class);
 
     private static final String VARIABLE_USER_KEY = "userKey";
-    
+
     @Value("${opertusmundi.bpm.worker.tasks.activate-account.lock-duration:10000}")
     private Long lockDurationMillis;
 
@@ -58,10 +58,10 @@ public class ActivateAccountTakService extends AbstractTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // TODO: Initialize account for Jupyter Hub
-            
+
             // Complete account registration
             this.activateAccount(userKey);
-            
+
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
@@ -96,9 +96,10 @@ public class ActivateAccountTakService extends AbstractTaskService {
 
             throw this.buildException(AccountMessageCode.INVALID_ACCOUNT_STATUS, message, message);
         }
-        
+
         account.setActivationStatus(EnumActivationStatus.COMPLETED);
-        
+        account.setActive(true);
+
         this.accountRepository.saveAndFlush(account);
     }
 
