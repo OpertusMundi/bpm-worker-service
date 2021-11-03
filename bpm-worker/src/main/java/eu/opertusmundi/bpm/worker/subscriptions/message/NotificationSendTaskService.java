@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.feign.client.MessageServiceFeignClient;
@@ -59,11 +61,13 @@ public class NotificationSendTaskService extends AbstractTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Build notification message
+            final JsonNode data = this.notificationMessageBuilder.collectNotificationData(type, variables); 
+            
             final ServerNotificationCommandDto notification = ServerNotificationCommandDto.builder()
-                .data(this.notificationMessageBuilder.collectNotificationData(type, variables))
+                .data(data)
                 .eventType(notificationType)
                 .recipient(notificationRecipient)
-                .text(this.notificationMessageBuilder.composeNotificationText(type, variables))
+                .text(this.notificationMessageBuilder.composeNotificationText(type, data))
                 .build();
 
             messageClient.getObject().sendNotification(notification);
