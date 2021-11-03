@@ -101,7 +101,7 @@ public class MailSendTaskService extends AbstractTaskService {
 
         // Compose message
         final MailModelBuilder builder = MailModelBuilder.builder()
-            .add("userKey", recipientKey)
+            .add("userKey", recipientKey.toString())
             .addAll(variables);
 
         final Map<String, Object>             model    = this.messageHelper.createModel(type, builder);
