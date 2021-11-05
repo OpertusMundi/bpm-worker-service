@@ -71,7 +71,7 @@ public class IngestTaskService extends AbstractTaskService {
             final UUID    publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final boolean published    = this.isPublished(externalTask, externalTaskService);
 
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
+            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
 
             final List<ResourceDto> resources = draft.getCommand().getResources();
 

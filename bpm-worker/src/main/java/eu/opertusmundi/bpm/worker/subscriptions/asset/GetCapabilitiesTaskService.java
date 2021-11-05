@@ -77,7 +77,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                     .build();
             }
 
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
+            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
 
             final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
             final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();

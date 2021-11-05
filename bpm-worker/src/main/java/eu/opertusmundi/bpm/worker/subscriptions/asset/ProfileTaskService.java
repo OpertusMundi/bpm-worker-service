@@ -82,7 +82,7 @@ public class ProfileTaskService extends AbstractTaskService {
             final UUID                       draftKey     = this.getDraftKey(externalTask, externalTaskService);
             final UUID                       publisherKey = this.getPublisherKey(externalTask, externalTaskService);
 
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey);
+            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
 
             final List<ResourceDto>   resources = draft.getCommand().getResources();
 
