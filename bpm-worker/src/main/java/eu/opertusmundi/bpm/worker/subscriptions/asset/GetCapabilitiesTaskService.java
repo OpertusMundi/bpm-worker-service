@@ -66,7 +66,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
             this.preExecution(externalTask, externalTaskService);
 
-            final UUID          draftKey     = this.getAssetKey(externalTask, externalTaskService);
+            final UUID          draftKey     = this.getDraftKey(externalTask, externalTaskService);
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
 
@@ -163,8 +163,8 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         }
     }
 
-    private UUID getAssetKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String name     = "assetKey";
+    private UUID getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
+        final String name     = "draftKey";
         final String draftKey = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(draftKey)) {
