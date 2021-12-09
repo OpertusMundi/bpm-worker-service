@@ -70,71 +70,66 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
 
-            if (type != EnumAssetType.SERVICE) {
-                throw BpmnWorkerException.builder()
-                    .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
-                    .message(String.format("Asset type is not supported [type=%s]", type))
-                    .build();
-            }
-
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-
-            final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
-            final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
-
-            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-
-            // Process all services
-            for (ResourceIngestionDataDto service : services) {
-                // Find endpoint
-                final ResourceIngestionDataDto.ServiceEndpoint endpoint = service.getEndpointByServiceType(serviceType);
-
-                if (endpoint == null) {
-                    // Service type not supported
-                    throw BpmnWorkerException.builder()
-                        .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
-                        .message(String.format(
-                            "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]",
-                            service.getTableName(), serviceType
-                        ))
-                        .build();
-                }
-                
-                // Find endpoint
-                final ServiceResourceSampleAreaDto sampleAreas = StreamUtils.from(draft.getCommand().getSampleAreas())
-                    .filter(r-> r.getId().equals(service.getKey()))
-                    .findFirst()
-                    .orElse(null);
-
-                logger.info("Processing endpoint {}", endpoint.getUri());
-
-                if (sampleAreas != null && !CollectionUtils.isEmpty(sampleAreas.getAreas())) {
-                    final CatalogueItemMetadataCommandDto command = new CatalogueItemMetadataCommandDto();
-                    
-                    switch (serviceType) {
-                        case WMS :
-                            final List<WmsLayerSample> images = this.geoServerUtils.getWmsSamples(service, sampleAreas.getAreas());
-                            command.setSamples(this.objectMapper.valueToTree(images));
-                            break;
-                        case WFS :
-                            final List<WfsLayerSample> features = this.geoServerUtils.getWfsSamples(service, sampleAreas.getAreas());
-                            command.setSamples(this.objectMapper.valueToTree(features));
-                            break;
-                        default :
-                            // Ignore
+            if (type == EnumAssetType.SERVICE) {
+                final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+    
+                final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
+                final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
+    
+                logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
+    
+                // Process all services
+                for (ResourceIngestionDataDto service : services) {
+                    // Find endpoint
+                    final ResourceIngestionDataDto.ServiceEndpoint endpoint = service.getEndpointByServiceType(serviceType);
+    
+                    if (endpoint == null) {
+                        // Service type not supported
+                        throw BpmnWorkerException.builder()
+                            .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
+                            .message(String.format(
+                                "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]",
+                                service.getTableName(), serviceType
+                            ))
+                            .build();
                     }
                     
-                    command.setDraftKey(draftKey);
-                    command.setOwnerKey(publisherKey);
-                    command.setPublisherKey(publisherKey);
-                    command.setResourceKey(UUID.fromString(service.getKey()));
-                    command.setVisibility(null);
-                    command.setSampleAreas(null);
-
-                    this.providerAssetService.updateDraftMetadata(command);
+                    // Find endpoint
+                    final ServiceResourceSampleAreaDto sampleAreas = StreamUtils.from(draft.getCommand().getSampleAreas())
+                        .filter(r-> r.getId().equals(service.getKey()))
+                        .findFirst()
+                        .orElse(null);
+    
+                    logger.info("Processing endpoint {}", endpoint.getUri());
+    
+                    if (sampleAreas != null && !CollectionUtils.isEmpty(sampleAreas.getAreas())) {
+                        final CatalogueItemMetadataCommandDto command = new CatalogueItemMetadataCommandDto();
+                        
+                        switch (serviceType) {
+                            case WMS :
+                                final List<WmsLayerSample> images = this.geoServerUtils.getWmsSamples(service, sampleAreas.getAreas());
+                                command.setSamples(this.objectMapper.valueToTree(images));
+                                break;
+                            case WFS :
+                                final List<WfsLayerSample> features = this.geoServerUtils.getWfsSamples(service, sampleAreas.getAreas());
+                                command.setSamples(this.objectMapper.valueToTree(features));
+                                break;
+                            default :
+                                // Ignore
+                        }
+                        
+                        command.setDraftKey(draftKey);
+                        command.setOwnerKey(publisherKey);
+                        command.setPublisherKey(publisherKey);
+                        command.setResourceKey(UUID.fromString(service.getKey()));
+                        command.setVisibility(null);
+                        command.setSampleAreas(null);
+    
+                        this.providerAssetService.updateDraftMetadata(command);
+                    }
                 }
             }
-
+            
             // Complete task
             this.postExecution(externalTask, externalTaskService);
 
