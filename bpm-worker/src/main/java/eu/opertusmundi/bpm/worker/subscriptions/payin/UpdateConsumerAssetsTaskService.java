@@ -47,7 +47,7 @@ public class UpdateConsumerAssetsTaskService extends AbstractTaskService {
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.orderFulfillmentService.updateConsumer(payInKey);
+            this.orderFulfillmentService.registerConsumerAssets(payInKey);
 
             // Complete task
             externalTaskService.complete(externalTask);

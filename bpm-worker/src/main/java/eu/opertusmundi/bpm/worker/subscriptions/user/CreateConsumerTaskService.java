@@ -43,22 +43,27 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
     @Override
     public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         try {
-            final String taskId = externalTask.getId();
+            final String           taskId       = externalTask.getId();
+            final EnumCustomerType customerType = EnumCustomerType.CONSUMER;
 
             logger.info("Received task. [taskId={}]", taskId);
 
             final UUID                    userKey         = this.getUserKey(externalTask, externalTaskService);
             final UUID                    registrationKey = this.getRegistrationKey(externalTask, externalTaskService);
-            final UserRegistrationCommand command         = UserRegistrationCommand.of(EnumCustomerType.CONSUMER, userKey, registrationKey);
+            final UserRegistrationCommand command         = UserRegistrationCommand.of(customerType, userKey, registrationKey);
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             this.paymentService.createUser(command);
 
             this.paymentService.createWallet(command);
-
+           
             this.registrationService.completeRegistration(userKey);
-
+            
+            // Initial update with values from MANGOPAY
+            this.paymentService.updateCustomerWalletFunds(userKey, customerType);
+            this.paymentService.updateUserBlockStatus(userKey, customerType);
+            
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
