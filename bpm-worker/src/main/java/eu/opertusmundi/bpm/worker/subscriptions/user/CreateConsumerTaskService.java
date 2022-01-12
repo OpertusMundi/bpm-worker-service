@@ -14,7 +14,7 @@ import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ConsumerRegistrationService;
-import eu.opertusmundi.common.service.PaymentService;
+import eu.opertusmundi.common.service.mangopay.PaymentService;
 
 @Service
 public class CreateConsumerTaskService extends AbstractCustomerTaskService {

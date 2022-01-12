@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.payment.PayOutDto;
-import eu.opertusmundi.common.service.PaymentService;
+import eu.opertusmundi.common.service.mangopay.PaymentService;
 
 @Service
 public class CreatePayOutTaskService extends AbstractTaskService {
