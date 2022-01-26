@@ -45,11 +45,6 @@ public class CreatePayOutTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            // Workaround for known issue with database write/read race
-            // condition:
-            // PayOut database record may have not yet been committed.
-            // Thread.sleep(5000);
-
             // Get parameters
             final UUID                payOutKey = UUID.fromString(externalTask.getBusinessKey());
             final Map<String, Object> variables = new HashMap<>();
