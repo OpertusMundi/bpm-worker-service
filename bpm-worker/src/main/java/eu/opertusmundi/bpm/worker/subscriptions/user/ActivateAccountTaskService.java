@@ -32,9 +32,9 @@ import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.DefaultUserFileNamingStrategy;
 
 @Service
-public class ActivateAccountTakService extends AbstractTaskService {
+public class ActivateAccountTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ActivateAccountTakService.class);
+    private static final Logger logger = LoggerFactory.getLogger(ActivateAccountTaskService.class);
 
     private static final String VARIABLE_USER_KEY = "userKey";
     
