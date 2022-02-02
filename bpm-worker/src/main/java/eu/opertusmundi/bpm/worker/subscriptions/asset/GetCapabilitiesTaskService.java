@@ -127,7 +127,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 resource.setId(UUID.randomUUID().toString());
                 resource.setParentId(service.getKey());
 
-                this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);               
+                this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);
             }
 
             // Update draft status
@@ -144,7 +144,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
                 .variableAsString("status", newStatus.toString())
                 .buildValues();
-            
+
             this.postExecution(externalTask, externalTaskService);
 
             externalTaskService.complete(externalTask, variables);
@@ -168,7 +168,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         final String draftKey = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(draftKey)) {
-            logger.error("Expected draft key to be non empty. [name=%s]", name);
+            logger.error("Expected draft key to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }
@@ -181,7 +181,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         final String publisherKey = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(publisherKey)) {
-            logger.error("Expected publisher key to be non empty. [name=%s]", name);
+            logger.error("Expected publisher key to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }

@@ -72,17 +72,17 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
 
             if (type == EnumAssetType.SERVICE) {
                 final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-    
+
                 final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
                 final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
-    
+
                 logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-    
+
                 // Process all services
                 for (ResourceIngestionDataDto service : services) {
                     // Find endpoint
                     final ResourceIngestionDataDto.ServiceEndpoint endpoint = service.getEndpointByServiceType(serviceType);
-    
+
                     if (endpoint == null) {
                         // Service type not supported
                         throw BpmnWorkerException.builder()
@@ -93,18 +93,18 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
                             ))
                             .build();
                     }
-                    
+
                     // Find endpoint
                     final ServiceResourceSampleAreaDto sampleAreas = StreamUtils.from(draft.getCommand().getSampleAreas())
                         .filter(r-> r.getId().equals(service.getKey()))
                         .findFirst()
                         .orElse(null);
-    
+
                     logger.info("Processing endpoint {}", endpoint.getUri());
-    
+
                     if (sampleAreas != null && !CollectionUtils.isEmpty(sampleAreas.getAreas())) {
                         final CatalogueItemMetadataCommandDto command = new CatalogueItemMetadataCommandDto();
-                        
+
                         switch (serviceType) {
                             case WMS :
                                 final List<WmsLayerSample> images = this.geoServerUtils.getWmsSamples(service, sampleAreas.getAreas());
@@ -117,19 +117,19 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
                             default :
                                 // Ignore
                         }
-                        
+
                         command.setDraftKey(draftKey);
                         command.setOwnerKey(publisherKey);
                         command.setPublisherKey(publisherKey);
                         command.setResourceKey(UUID.fromString(service.getKey()));
                         command.setVisibility(null);
                         command.setSampleAreas(null);
-    
+
                         this.providerAssetService.updateDraftMetadata(command);
                     }
                 }
             }
-            
+
             // Complete task
             this.postExecution(externalTask, externalTaskService);
 
@@ -165,7 +165,7 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
         final String publisherKey = (String) externalTask.getVariable(name);
 
         if (StringUtils.isBlank(publisherKey)) {
-            logger.error("Expected publisher key to be non empty. [name=%s]", name);
+            logger.error("Expected publisher key to be non empty. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
         }
