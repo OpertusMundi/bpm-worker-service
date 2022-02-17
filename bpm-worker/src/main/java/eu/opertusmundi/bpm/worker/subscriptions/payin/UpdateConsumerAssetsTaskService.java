@@ -19,7 +19,7 @@ public class UpdateConsumerAssetsTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(UpdateConsumerAssetsTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.update-consumer-assets.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.update-consumer-assets.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired

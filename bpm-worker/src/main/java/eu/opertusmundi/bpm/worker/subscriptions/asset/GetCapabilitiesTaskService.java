@@ -35,7 +35,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(GetCapabilitiesTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.get-capabilities.lock-duration:60000}")
+    @Value("${opertusmundi.bpm.worker.tasks.get-capabilities.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Override

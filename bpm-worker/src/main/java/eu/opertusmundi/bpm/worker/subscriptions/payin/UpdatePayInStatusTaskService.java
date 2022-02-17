@@ -22,7 +22,7 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(UpdatePayInStatusTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.update-payin-status.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.update-payin-status.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired

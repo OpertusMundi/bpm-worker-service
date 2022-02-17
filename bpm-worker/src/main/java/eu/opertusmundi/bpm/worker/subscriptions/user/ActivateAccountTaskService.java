@@ -37,11 +37,11 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     private static final Logger logger = LoggerFactory.getLogger(ActivateAccountTaskService.class);
 
     private static final String VARIABLE_USER_KEY = "userKey";
-    
-    private static final FileAttribute<Set<PosixFilePermission>> DEFAULT_DIRECTORY_ATTRIBUTE = 
+
+    private static final FileAttribute<Set<PosixFilePermission>> DEFAULT_DIRECTORY_ATTRIBUTE =
         PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxr-x"));
 
-    @Value("${opertusmundi.bpm.worker.tasks.activate-account.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.activate-account.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -49,7 +49,7 @@ public class ActivateAccountTaskService extends AbstractTaskService {
 
     @Autowired
     private DefaultUserFileNamingStrategy userFileNamingStrategy;
-    
+
     @Override
     public String getTopicName() {
         return "activateAccount";
@@ -75,7 +75,7 @@ public class ActivateAccountTaskService extends AbstractTaskService {
 
             // Prepare home directory for the new account
             this.setupHomeDirectory(accountDto);
-            
+
             // Done
             externalTaskService.complete(externalTask);
             logger.info("Completed task. [taskId={}]", taskId);
@@ -106,29 +106,29 @@ public class ActivateAccountTaskService extends AbstractTaskService {
             );
             throw this.buildException(AccountMessageCode.INVALID_ACCOUNT_STATUS, message, message);
         }
-        
+
         account.setActivationStatus(EnumActivationStatus.COMPLETED);
         account.setActive(true);
 
         this.accountRepository.saveAndFlush(account);
         return account.toSimpleDto();
     }
-    
+
     private void setupHomeDirectory(SimpleAccountDto accountDto) throws IOException
     {
         final String userName = accountDto.getUsername();
         final UUID userKey = accountDto.getKey();
         logger.info("Setting up home directory for user {} [key={}]", userName, userKey);
-        
+
         final Path homeDir = userFileNamingStrategy.getDir(
             UserFileNamingStrategyContext.of(userName, false /*strict*/, true /*createIfNotExists*/));
         logger.info("Created home for user {} [key={}]: {}", userName, userKey, homeDir);
-        
+
         // Create directory structure under home
-        
+
         for (EnumUserFileReservedEntry r: EnumSet.of(
-                EnumUserFileReservedEntry.NOTEBOOKS_FOLDER, 
-                EnumUserFileReservedEntry.QUOTA_FOLDER)) 
+                EnumUserFileReservedEntry.NOTEBOOKS_FOLDER,
+                EnumUserFileReservedEntry.QUOTA_FOLDER))
         {
             final Path d = homeDir.resolve(r.entryName());
             try {

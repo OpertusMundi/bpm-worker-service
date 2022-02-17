@@ -36,7 +36,7 @@ public class IngestTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(IngestTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.ingest.lock-duration:60000}")
+    @Value("${opertusmundi.bpm.worker.tasks.ingest.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Override
@@ -148,15 +148,22 @@ public class IngestTaskService extends AbstractTaskService {
         if (result == null || !result.isCompleted()) {
             // TODO: Add a parameter for preventing infinite loops
             while (counter++ < 100) {
-                // NOTE: Polling time must be less than lock duration
+                // NOTE: Polling interval must be less than lock duration
                 Thread.sleep(15000);
 
                 // Extend lock duration
                 externalTaskService.extendLock(externalTask, this.getLockDuration());
 
-                result = this.ingestService.getStatus(ticket);
-                if (result.isCompleted()) {
-                    break;
+                try {
+                    result = this.ingestService.getStatus(ticket);
+
+                    if (result.isCompleted()) {
+                        break;
+                    }
+                } catch (Exception ex) {
+                    // Ignore exception since the remote server may have not
+                    // initialized the job
+                    logger.info(String.format("Ingest service get status operation has failed [ticket=%s]", ticket), ex);
                 }
             }
         }
@@ -167,6 +174,10 @@ public class IngestTaskService extends AbstractTaskService {
 
             return resultResponse;
         } else {
+            if (counter == 100) {
+                logger.warn(String.format("Ingest service ingest operation has timed out [ticket=%s]", ticket));
+            }
+            
             throw BpmnWorkerException.builder()
                 .code(IngestServiceMessageCode.SERVICE_ERROR)
                 .message("[INGEST Service] Operation has failed")

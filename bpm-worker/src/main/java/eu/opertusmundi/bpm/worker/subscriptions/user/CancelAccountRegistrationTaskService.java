@@ -24,8 +24,8 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
     private static final Logger logger = LoggerFactory.getLogger(CancelAccountRegistrationTaskService.class);
 
     private static final String VARIABLE_USER_KEY = "userKey";
-    
-    @Value("${opertusmundi.bpm.worker.tasks.cancel-account-registration.lock-duration:10000}")
+
+    @Value("${opertusmundi.bpm.worker.tasks.cancel-account-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -53,7 +53,7 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             this.cancelAccountRegistration(userKey);
-            
+
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
@@ -88,7 +88,7 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
 
             throw this.buildException(AccountMessageCode.INVALID_ACCOUNT_STATUS, message, message);
         }
-        
+
         this.accountRepository.cancelAccountRegistration(userKey);
     }
 

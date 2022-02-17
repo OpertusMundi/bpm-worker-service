@@ -21,7 +21,7 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CreateProviderTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.provider-registration.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.provider-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -45,7 +45,7 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
         try {
             final String           taskId       = externalTask.getId();
             final EnumCustomerType customerType = EnumCustomerType.PROVIDER;
-            
+
             logger.info("Received task. [taskId={}]", taskId);
 
             final UUID                    userKey         = this.getUserKey(externalTask, externalTaskService);
@@ -59,9 +59,9 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
             this.paymentService.createWallet(command);
 
             this.paymentService.createBankAccount(command);
-           
+
             this.registrationService.completeRegistration(userKey);
-            
+
             // Initial update with values from MANGOPAY
             this.paymentService.updateCustomerWalletFunds(userKey, customerType);
             this.paymentService.updateUserBlockStatus(userKey, customerType);

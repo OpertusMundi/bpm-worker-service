@@ -23,7 +23,7 @@ public class PublishTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(PublishTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.publish-draft.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.publish-draft.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -73,7 +73,7 @@ public class PublishTaskService extends AbstractTaskService {
             final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
                 .variableAsString("status", EnumProviderAssetDraftStatus.PUBLISHED.toString())
                 .buildValues();
-            
+
             externalTaskService.complete(externalTask, variables);
 
             logger.info("Completed task. [taskId={}]", taskId);

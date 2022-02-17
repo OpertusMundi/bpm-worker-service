@@ -21,7 +21,7 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CreateConsumerTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.consumer-registration.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.consumer-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -57,13 +57,13 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
             this.paymentService.createUser(command);
 
             this.paymentService.createWallet(command);
-           
+
             this.registrationService.completeRegistration(userKey);
-            
+
             // Initial update with values from MANGOPAY
             this.paymentService.updateCustomerWalletFunds(userKey, customerType);
             this.paymentService.updateUserBlockStatus(userKey, customerType);
-            
+
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);

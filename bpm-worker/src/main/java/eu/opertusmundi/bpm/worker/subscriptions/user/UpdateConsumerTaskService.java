@@ -21,7 +21,7 @@ public class UpdateConsumerTaskService extends AbstractCustomerTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(UpdateConsumerTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.consumer-registration.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.consumer-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -50,7 +50,7 @@ public class UpdateConsumerTaskService extends AbstractCustomerTaskService {
             final UUID                    userKey         = this.getUserKey(externalTask, externalTaskService);
             final UUID                    registrationKey = this.getRegistrationKey(externalTask, externalTaskService);
             final UserRegistrationCommand command         = UserRegistrationCommand.of(EnumCustomerType.CONSUMER, userKey, registrationKey);
-            
+
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             this.paymentService.updateUser(command);

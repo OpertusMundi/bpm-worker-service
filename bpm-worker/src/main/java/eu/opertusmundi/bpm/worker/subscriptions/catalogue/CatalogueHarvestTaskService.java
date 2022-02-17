@@ -19,7 +19,7 @@ public class CatalogueHarvestTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CatalogueHarvestTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.catalogue-harvest.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.catalogue-harvest.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired

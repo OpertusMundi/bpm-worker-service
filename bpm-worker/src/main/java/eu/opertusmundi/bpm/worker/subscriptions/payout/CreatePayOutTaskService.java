@@ -22,7 +22,7 @@ public class CreatePayOutTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CreatePayOutTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.create-payout.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.create-payout.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired

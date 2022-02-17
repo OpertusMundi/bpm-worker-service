@@ -41,7 +41,7 @@ public class ProfileTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(ProfileTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.data-profiler.lock-duration:60000}")
+    @Value("${opertusmundi.bpm.worker.tasks.data-profiler.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Value("${opertusmundi.data-profiler.parameters.aspect-ratio:}")
@@ -105,7 +105,7 @@ public class ProfileTaskService extends AbstractTaskService {
 
             // Update draft status if this is not a SERVICE asset
             final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
-            
+
             if (draft.getCommand().getType() != EnumAssetType.SERVICE) {
                 final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
                 final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
@@ -148,7 +148,7 @@ public class ProfileTaskService extends AbstractTaskService {
                 .height(this.height)
                 .width(this.width)
                 .build();
-        
+
         if (resource.getCategory() == EnumAssetType.VECTOR) {
             options.setGeometry("WKT");
         }
@@ -163,7 +163,7 @@ public class ProfileTaskService extends AbstractTaskService {
 
         // TODO: Add a parameter for preventing infinite loops
         while (counter++ < 100) {
-            // NOTE: Polling time must be less than lock duration
+            // NOTE: Polling interval must be less than lock duration
             Thread.sleep(15000);
 
             // Extend lock duration
@@ -176,8 +176,9 @@ public class ProfileTaskService extends AbstractTaskService {
                     break;
                 }
             } catch (Exception ex) {
-                // Ignore exception since the remote server may not have
+                // Ignore exception since the remote server may have not
                 // initialized the job
+                logger.info(String.format("Data profiler get status operation has failed [ticket=%s]", ticket), ex);
             }
         }
 
@@ -186,8 +187,12 @@ public class ProfileTaskService extends AbstractTaskService {
 
             return metadata;
         } else {
+            if (counter == 100) {
+                logger.warn(String.format("Data profiler get metadata operation has timed out [ticket=%s]", ticket));
+            }
+
             throw new DataProfilerServiceException(DataProfilerServiceMessageCode.SERVICE_ERROR, String.format(
-                "Data profiler operation has failed [ticket=%s, comment=%s]", 
+                "Data profiler operation has failed [ticket=%s, comment=%s]",
                 ticket, result == null ? "" : result.getComment()
             ));
         }

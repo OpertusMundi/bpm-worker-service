@@ -20,7 +20,7 @@ public class UnpublishTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(UnpublishTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.unpublish-asset.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.unpublish-asset.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired

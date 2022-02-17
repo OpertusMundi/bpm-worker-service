@@ -26,7 +26,7 @@ public class NotificationSendTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(NotificationSendTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.notification-send.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.notification-send.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -61,8 +61,8 @@ public class NotificationSendTaskService extends AbstractTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Build notification message
-            final JsonNode data = this.notificationMessageBuilder.collectNotificationData(type, variables); 
-            
+            final JsonNode data = this.notificationMessageBuilder.collectNotificationData(type, variables);
+
             final ServerNotificationCommandDto notification = ServerNotificationCommandDto.builder()
                 .data(data)
                 .eventType(notificationType)

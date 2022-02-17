@@ -35,7 +35,7 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CreateServiceSamplesTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.create-service-samples.lock-duration:60000}")
+    @Value("${opertusmundi.bpm.worker.tasks.create-service-samples.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Override

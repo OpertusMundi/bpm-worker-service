@@ -33,7 +33,7 @@ public class MailSendTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(MailSendTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.mail-send.lock-duration:10000}")
+    @Value("${opertusmundi.bpm.worker.tasks.mail-send.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
