@@ -1,5 +1,6 @@
 package eu.opertusmundi.bpm.worker.subscriptions.message;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
@@ -89,7 +90,7 @@ public class MailSendTaskService extends AbstractTaskService {
         }
     }
 
-    private void sendMail(EnumMailType type, UUID recipientKey, Map<String, Object> variables) {
+    private void sendMail(EnumMailType type, UUID recipientKey, Map<String, Object> variables) throws IOException {
         // Resolve recipient
         final AccountEntity account = accountRepository.findOneByKey(recipientKey).orElse(null);
         if (account == null) {
@@ -102,6 +103,7 @@ public class MailSendTaskService extends AbstractTaskService {
         // Compose message
         final MailModelBuilder builder = MailModelBuilder.builder()
             .add("userKey", recipientKey.toString())
+            .addAllAttachments(variables)
             .addAll(variables);
 
         final Map<String, Object>             model    = this.messageHelper.createModel(type, builder);
