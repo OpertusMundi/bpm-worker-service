@@ -46,10 +46,8 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
-            final UUID                payInKey                = UUID.fromString(externalTask.getBusinessKey());
-            final String              payInId                 = this.getVariableAsString(externalTask, externalTaskService, "payInId");
-            final String              payInStatusVariableName = this.getVariableAsString(externalTask, externalTaskService, "payInStatusVariableName");
-            Map<String, Object> 	  variables               = new HashMap<>();
+            final UUID          payInKey  = UUID.fromString(externalTask.getBusinessKey());
+            Map<String, Object> variables = new HashMap<>();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
