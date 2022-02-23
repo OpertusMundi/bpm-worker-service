@@ -115,6 +115,8 @@ opertusmundi.file-system.data-dir=
 opertusmundi.file-system.draft-dir=
 # Root folder for storing asset files
 opertusmundi.file-system.asset-dir=
+# Root folder for storing invoice files
+opertusmundi.file-system.invoice-dir=
 ```
 
 ### Configure Payment service
@@ -147,4 +149,4 @@ or using the Spring Boot plugin:
 
 `cd bpm-worker && mvn spring-boot:run`
 
-The worker service requires an existing BPM server instance to successfully register for external tasks. 
+The worker service requires an existing BPM server instance to successfully register for external tasks.
