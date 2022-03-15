@@ -65,6 +65,9 @@ services:
       PROFILE_BASE_URL: ${PROFILE_BASE_URL}
       PID_BASE_URL: ${PID_BASE_URL}
       ELASTICSEARCH_BASE_URL: ${ELASTICSEARCH_BASE_URL}
+      KEYCLOAK_URL: ""
+      KEYCLOAK_REALM: ""
+      KEYCLOAK_REFRESH_TOKEN_FILE: ""
     ports:
     - '8005:8005'
     networks:

@@ -94,6 +94,15 @@ runtime_profile=$(hostname | md5sum | head -c10)
     echo "opertusmundi.geoserver.endpoint = ${geoserver_base_url}"
     echo "opertusmundi.geoserver.workspace = ${geoserver_workspace}"
 
+    if [[ -n "${KEYCLOAK_URL}" ]]; then
+        keycloak_url=$(echo ${KEYCLOAK_URL} | _validate_http_url "KEYCLOAK_URL")
+        keycloak_realm=${KEYCLOAK_REALM}
+        keycloak_refresh_token=$(cat ${KEYCLOAK_REFRESH_TOKEN_FILE} | tr -d '\n')
+        echo "opertusmundi.feign.keycloak.url = ${keycloak_url}"
+        echo "opertusmundi.feign.keycloak.realm = ${keycloak_realm}"
+        echo "opertusmundi.feign.keycloak.admin.refresh-token.refresh-token = ${keycloak_refresh_token}"
+    fi 
+
 } > ./config/application-${runtime_profile}.properties
 
 logging_config="classpath:config/log4j2.xml"
