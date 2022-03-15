@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.Parameters;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.service.invoice.InvoiceGeneratorService;
 import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
@@ -57,7 +58,7 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
 
             // Complete task
             variables = BpmInstanceVariablesBuilder.builder()
-                .variableAsString("attachmentInvoice", invoice)
+                .variableAsString(Parameters.SEND_MAIL_ATTACHMENT_PREFIX + "Invoice", invoice)
                 .buildValues();
             
             externalTaskService.complete(externalTask, variables);

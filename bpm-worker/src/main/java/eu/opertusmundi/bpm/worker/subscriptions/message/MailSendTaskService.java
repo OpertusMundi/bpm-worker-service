@@ -1,9 +1,12 @@
 package eu.opertusmundi.bpm.worker.subscriptions.message;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.io.FilenameUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
@@ -11,15 +14,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.Parameters;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.domain.AccountEntity;
 import eu.opertusmundi.common.feign.client.EmailServiceFeignClient;
 import eu.opertusmundi.common.model.BaseResponse;
 import eu.opertusmundi.common.model.ServiceException;
+import eu.opertusmundi.common.model.email.AttachmentDto;
 import eu.opertusmundi.common.model.email.EmailAddressDto;
 import eu.opertusmundi.common.model.email.EnumMailType;
 import eu.opertusmundi.common.model.email.MailMessageCode;
@@ -103,7 +109,6 @@ public class MailSendTaskService extends AbstractTaskService {
         // Compose message
         final MailModelBuilder builder = MailModelBuilder.builder()
             .add("userKey", recipientKey.toString())
-            .addAllAttachments(variables)
             .addAll(variables);
 
         final Map<String, Object>             model    = this.messageHelper.createModel(type, builder);
@@ -116,6 +121,19 @@ public class MailSendTaskService extends AbstractTaskService {
         message.setSubject(subject);
         message.setTemplate(template);
         message.setModel(model);
+
+        // Add attachments
+        for (final String key : variables.keySet()) {
+            // If a variable name starts with the prefix
+            // `Parameters.SEND_MAIL_ATTACHMENT_PREFIX`, it is an attachment
+            if (key.startsWith(Parameters.SEND_MAIL_ATTACHMENT_PREFIX)) {
+                final String        path       = variables.get(key).toString();
+                final AttachmentDto attachment = new AttachmentDto(
+                    FilenameUtils.getName(path), Files.readAllBytes(Paths.get(path)), MediaType.APPLICATION_PDF_VALUE
+                );
+                message.addAttachment(attachment);
+            }
+        }
 
         message.setRecipients(builder.getAddress());
 
