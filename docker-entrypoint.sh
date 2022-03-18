@@ -103,6 +103,17 @@ runtime_profile=$(hostname | md5sum | head -c10)
         echo "opertusmundi.feign.keycloak.admin.refresh-token.refresh-token = ${keycloak_refresh_token}"
     fi 
 
+    if [[ -n "${CONTRACT_SIGNPDF_KEYSTORE}" ]]; then
+        contract_signpdf_keystore=$(realpath ${CONTRACT_SIGNPDF_KEYSTORE})
+        test -f "${contract_signpdf_keystore}"
+        contract_signpdf_keystore_password=$(cat ${CONTRACT_SIGNPDF_KEYSTORE_PASSWORD_FILE} | tr -d '\n')
+        contract_signpdf_key_alias=${CONTRACT_SIGNPDF_KEY_ALIAS}
+        test -n "${contract_signpdf_key_alias}"
+        echo "opertusmundi.contract.signpdf.key-store = file://${contract_signpdf_keystore}"
+        echo "opertusmundi.contract.signpdf.key-store-password = ${contract_signpdf_keystore_password}"
+        echo "opertusmundi.contract.signpdf.key-alias = ${contract_signpdf_key_alias}"
+    fi
+
 } > ./config/application-${runtime_profile}.properties
 
 logging_config="classpath:config/log4j2.xml"
