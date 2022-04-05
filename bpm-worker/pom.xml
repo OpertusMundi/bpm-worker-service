@@ -16,13 +16,13 @@
 		<version>1.0.0</version>
 	</parent>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <dependency.locations.enabled>false</dependency.locations.enabled>
-        <java.version>1.8</java.version>
-        <git-commit-id.skip>false</git-commit-id.skip>
-    </properties>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<dependency.locations.enabled>false</dependency.locations.enabled>
+		<java.version>1.8</java.version>
+		<git-commit-id.skip>false</git-commit-id.skip>
+	</properties>
 
     <profiles>
         <profile>
