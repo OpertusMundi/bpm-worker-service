@@ -85,7 +85,7 @@ runtime_profile=$(hostname | md5sum | head -c10)
     elasticsearch_base_url=$(echo ${ELASTICSEARCH_BASE_URL%/} | _validate_http_url "ELASTICSEARCH_BASE_URL")
     elasticsearch_indices_assets_index_name=${ELASTICSEARCH_INDICES_ASSETS_INDEX_NAME}
     elasticsearch_indices_profiles_index_name=${ELASTICSEARCH_INDICES_PROFILES_INDEX_NAME}
-    echo "spring.elasticsearch.rest.uris = ${elasticsearch_base_url}"
+    echo "spring.elasticsearch.uris = ${elasticsearch_base_url}"
     echo "opertusmundi.elastic.asset-index.name = ${elasticsearch_indices_assets_index_name}"
     echo "opertusmundi.elastic.profile-index.name = ${elasticsearch_indices_profiles_index_name}"
 
