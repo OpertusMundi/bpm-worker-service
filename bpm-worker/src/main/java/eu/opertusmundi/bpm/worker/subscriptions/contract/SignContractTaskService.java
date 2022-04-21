@@ -78,8 +78,6 @@ public class SignContractTaskService extends AbstractTaskService {
                             .orderKey(order.getKey())
                             .itemIndex(1)
                             .build();
-                        
-                        
 
                         this.contractService.sign(command);
                         break;
