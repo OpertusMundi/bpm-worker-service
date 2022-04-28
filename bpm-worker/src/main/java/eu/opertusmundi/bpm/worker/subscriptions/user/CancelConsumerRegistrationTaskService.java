@@ -1,5 +1,6 @@
 package eu.opertusmundi.bpm.worker.subscriptions.user;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.camunda.bpm.client.task.ExternalTask;
@@ -11,21 +12,22 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
-import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.domain.AccountEntity;
+import eu.opertusmundi.common.model.Message;
 import eu.opertusmundi.common.model.account.AccountMessageCode;
-import eu.opertusmundi.common.model.account.EnumActivationStatus;
 import eu.opertusmundi.common.repository.AccountRepository;
 
 @Service
-public class CancelAccountRegistrationTaskService extends AbstractTaskService {
+public class CancelConsumerRegistrationTaskService extends AbstractCustomerTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CancelAccountRegistrationTaskService.class);
 
-    private static final String VARIABLE_USER_KEY = "userKey";
-
-    @Value("${opertusmundi.bpm.worker.tasks.cancel-account-registration.lock-duration:120000}")
+    @Value("${opertusmundi.bpm.worker.tasks.cancel-consumer-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
@@ -33,7 +35,7 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
 
     @Override
     public String getTopicName() {
-        return "cancelAccountRegistration";
+        return "cancelConsumerRegistration";
     }
 
     @Override
@@ -48,11 +50,12 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            final UUID userKey = this.getVariableAsUUID(externalTaskService, externalTask, VARIABLE_USER_KEY);
+            final UUID   userKey       = this.getUserKey(externalTask, externalTaskService);
+            final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.cancelAccountRegistration(userKey);
+            this.cancelRegistration(userKey, errorMessages);
 
             externalTaskService.complete(externalTask);
 
@@ -71,7 +74,7 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
     }
 
     @Transactional
-    private void cancelAccountRegistration(UUID userKey) throws BpmnWorkerException {
+    private void cancelRegistration(UUID userKey, String errorMessages) throws BpmnWorkerException, JsonMappingException, JsonProcessingException {
         final AccountEntity account = this.accountRepository.findOneByKey(userKey).orElse(null);
 
         if (account == null) {
@@ -80,16 +83,9 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
             throw this.buildException(AccountMessageCode.ACCOUNT_NOT_FOUND, message, message);
         }
 
-        if (account.getActivationStatus() != EnumActivationStatus.PENDING) {
-            final String message = String.format(
-                "Invalid account status. Expected status [PENDING]. Found [%s]. [userKey=%s]",
-                account.getActivationStatus(), userKey
-            );
-
-            throw this.buildException(AccountMessageCode.INVALID_ACCOUNT_STATUS, message, message);
-        }
-
-        this.accountRepository.cancelAccountRegistration(userKey);
+        List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
+        
+        this.accountRepository.failConsumerRegistration(userKey, messages);
     }
 
 }

@@ -79,7 +79,7 @@ public class UnpublishTaskService extends AbstractTaskService {
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            this.handleError(externalTaskService, externalTask, ex);
+            this.handleFailure(externalTaskService, externalTask, ex);
         }
     }
 

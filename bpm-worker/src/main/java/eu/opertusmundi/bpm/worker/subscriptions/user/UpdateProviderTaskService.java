@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ProviderRegistrationService;
@@ -62,16 +62,14 @@ public class UpdateProviderTaskService extends AbstractCustomerTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
-        } catch (final BpmnWorkerException ex) {
+        } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            externalTaskService.handleFailure(
-        		externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-    		);
+        	this.handleBpmnError(externalTaskService, externalTask, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-        	this.handleError(externalTaskService, externalTask, ex);
+            this.handleFailure(externalTaskService, externalTask, ex);
         }
     }
 

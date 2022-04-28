@@ -1,5 +1,6 @@
 package eu.opertusmundi.bpm.worker.subscriptions;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -18,9 +19,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.Assert;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerMessageCode;
+import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.MessageCode;
+import eu.opertusmundi.common.model.ServiceException;
+import eu.opertusmundi.common.model.workflow.EnumProcessInstanceVariable;
+import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 public abstract class AbstractTaskService implements ExternalTaskHandler {
 
@@ -28,10 +35,14 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final String ErrorSeparator = "||";
 
+    protected static final String DEFAULT_ERROR_CODE    = "Operation has failed";
     protected static final String DEFAULT_ERROR_MESSAGE = "Operation has failed";
     protected static final int    DEFAULT_RETRY_COUNT   = 0;
     protected static final long   DEFAULT_RETRY_TIMEOUT = 2000L;
 
+    @Autowired
+    protected ObjectMapper objectMapper;
+    
     @Autowired
     protected ExternalTaskClient externalTaskClient;
 
@@ -99,20 +110,67 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         .build();
     }
 
-    protected void handleError(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
-        final String details = StringUtils.join(
-            ExceptionUtils.getThrowableList(ex).stream()
-                .map(ExceptionUtils::getMessage)
-                .distinct()
-                .collect(Collectors.toList()),
-            ErrorSeparator
-        );
-        
+    protected void handleFailure(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
+        this.handleFailure(externalTaskService, externalTask, DEFAULT_ERROR_MESSAGE, ex);
+    }
+    
+    /**
+     * Reports a failure to execute a task and creates an incident for this task
+     * 
+     * @param externalTaskService
+     * @param externalTask
+     * @param errorMessage
+     * @param ex
+     */
+    protected void handleFailure(ExternalTaskService externalTaskService, ExternalTask externalTask, String errorMessage, Exception ex) {
+        final String errorDetails = this.exceptionToString(ex);
+
         externalTaskService.handleFailure(
-            externalTask, DEFAULT_ERROR_MESSAGE, details, DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
-        );
+            externalTask, errorMessage, errorDetails, DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
+        );       
+    }
+    
+    protected void handleBpmnError(ExternalTaskService externalTaskService, ExternalTask externalTask, String errorCode, ServiceException ex) {
+        this.handleBpmnError(externalTaskService, externalTask, errorCode, DEFAULT_ERROR_MESSAGE, ex);    
+    }
+    
+    protected void handleBpmnError(ExternalTaskService externalTaskService, ExternalTask externalTask, ServiceException ex) {
+        this.handleBpmnError(externalTaskService, externalTask, DEFAULT_ERROR_CODE, DEFAULT_ERROR_MESSAGE, ex);    
     }
 
+    /**
+     * Reports a business error in the context of a running task
+     * 
+     * @param externalTaskService
+     * @param externalTask
+     * @param errorCode
+     * @param errorMessage
+     * @param ex
+     */
+    protected void handleBpmnError(
+        ExternalTaskService externalTaskService, ExternalTask externalTask, String errorCode, String errorMessage, ServiceException ex
+    ) {
+        final String error          = this.exceptionToString(ex);
+        String       messagesAsJson = "";
+        try {
+            // Set default message
+            if (ex.getMessages().isEmpty()) {
+                ex.addMessage(BasicMessageCode.InternalServerError, "Service could not process the request");
+            }
+            messagesAsJson = objectMapper.writeValueAsString(ex.getMessages());
+        } catch (Exception sEx) {
+            logger.error("Failed to serialize exception messages");
+        }
+        
+        // Set variables
+        final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
+            .variableAsString(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_DETAILS.getValue(), error)
+            .variableAsString(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_MESSAGES.getValue(), messagesAsJson)
+            .buildValues();
+        
+        externalTaskService.handleBpmnError(externalTask, errorCode, errorMessage, variables);       
+    }
+    
     protected String getVariableAsString(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
@@ -134,4 +192,15 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return UUID.fromString(value);
     }
 
+    private String exceptionToString(Exception ex) {
+        final String result = StringUtils.join(
+            ExceptionUtils.getThrowableList(ex).stream()
+                .map(ExceptionUtils::getMessage)
+                .distinct()
+                .collect(Collectors.toList()),
+            ErrorSeparator
+        );
+        
+        return result;
+    }
 }

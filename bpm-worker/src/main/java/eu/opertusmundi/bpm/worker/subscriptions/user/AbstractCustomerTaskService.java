@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceException;
+import eu.opertusmundi.common.model.workflow.EnumProcessInstanceVariable;
 
 public abstract class AbstractCustomerTaskService extends AbstractTaskService {
 
@@ -38,6 +39,12 @@ public abstract class AbstractCustomerTaskService extends AbstractTaskService {
         }
 
         return UUID.fromString(registrationKey);
+    }
+    
+    protected String getErrorMessages(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+        final String errorDetails = (String) externalTask.getVariable(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_MESSAGES.getValue());
+
+        return errorDetails;
     }
 
 }
