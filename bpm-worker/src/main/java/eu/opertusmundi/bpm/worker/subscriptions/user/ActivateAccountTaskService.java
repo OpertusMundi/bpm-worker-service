@@ -7,10 +7,15 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import javax.annotation.PostConstruct;
 
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
@@ -25,6 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
@@ -39,12 +45,16 @@ import eu.opertusmundi.common.model.email.EnumMailType;
 import eu.opertusmundi.common.model.email.MessageDto;
 import eu.opertusmundi.common.model.file.EnumUserFileReservedEntry;
 import eu.opertusmundi.common.model.file.UserFileNamingStrategyContext;
+import eu.opertusmundi.common.model.keycloak.server.UserDto;
+import eu.opertusmundi.common.model.keycloak.server.UserQueryDto;
+import eu.opertusmundi.common.model.account.EnumAccountAttribute;
 import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.DefaultUserFileNamingStrategy;
+import eu.opertusmundi.common.service.KeycloakAdminService;
 import eu.opertusmundi.common.service.messaging.MailMessageHelper;
 import eu.opertusmundi.common.service.messaging.MailModelBuilder;
+
 import feign.FeignException;
-import io.jsonwebtoken.lang.Assert;
 
 @Service
 public class ActivateAccountTaskService extends AbstractTaskService {
@@ -52,7 +62,19 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     private static final Logger logger = LoggerFactory.getLogger(ActivateAccountTaskService.class);
 
     private static final String VARIABLE_USER_KEY = "userKey";
-
+    
+    private static final int MIN_PASSWORD_LENGTH = 8;
+    
+    private static final CharacterRule[] PASSWORD_POLICY = new CharacterRule[] {
+        // note: do not include special characters as a password will be emailed into an HTML body
+        new CharacterRule(EnglishCharacterData.Alphabetical),
+        new CharacterRule(EnglishCharacterData.LowerCase),
+        new CharacterRule(EnglishCharacterData.UpperCase),
+        new CharacterRule(EnglishCharacterData.Digit),
+    };
+    
+    private static final PasswordGenerator PASSWORD_GENERATOR = new PasswordGenerator();
+    
     private static final FileAttribute<Set<PosixFilePermission>> DEFAULT_DIRECTORY_ATTRIBUTE =
         PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxr-x"));
 
@@ -69,11 +91,21 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     private DefaultUserFileNamingStrategy userFileNamingStrategy;
 
     @Autowired
-    private MailMessageHelper messageHelper;
+    private MailMessageHelper mailMessageHelper;
 
     @Autowired
     private ObjectProvider<EmailServiceFeignClient> mailClient;
 
+    @Autowired
+    private KeycloakAdminService keycloakAdminService;
+
+    @PostConstruct
+    void checkPostConstruct()
+    {
+        Assert.isTrue(this.otpLength >= MIN_PASSWORD_LENGTH, 
+            () -> "Expected OTP password length to be >= " + MIN_PASSWORD_LENGTH);
+    }
+    
     @Override
     public String getTopicName() {
         return "activateAccount";
@@ -119,16 +151,16 @@ public class ActivateAccountTaskService extends AbstractTaskService {
         this.setupHomeDirectory(account);
 
         // Create OTP
-        final String password = this.generatePassword(this.otpLength);
+        final String password = PASSWORD_GENERATOR.generatePassword(otpLength, PASSWORD_POLICY);
 
         // Register account to IDP (Keycloak)
         this.registerAccountToIdp(account, password);
 
-        // Send OTP to user
-        this.sendMail(account, password);
-
         // Complete account registration
         this.activateAccount(userKey);
+        
+        // Send OTP to user
+        this.sendMail(account, password);
     }
 
     /**
@@ -212,20 +244,46 @@ public class ActivateAccountTaskService extends AbstractTaskService {
      */
     private void registerAccountToIdp(SimpleAccountDto account, String password) throws BpmnWorkerException {
         Assert.notNull(account, "Expected a non-null account");
-        Assert.notNull(password, "Expected a non-empty password");
+        Assert.hasText(password, "Expected a non-empty password");
 
         final String userName = account.getUsername();
-        final UUID   userKey  = account.getKey();
-
+        final String userEmail = userName;
+        final UUID userKey  = account.getKey();
+        
+        Assert.hasText(userName, "Expected an non-empty username");
+        logger.info("Setting up IDP account for user {} [key={}]", userName, userKey);
+        
+        final UserQueryDto queryForUsername = new UserQueryDto();
+        queryForUsername.setUsername(userName);
+        queryForUsername.setExact(true);
+        
         try {
-            logger.info("Creating IDP account for user {} [key={}]", userName, userKey);
-
-            // TODO: Create account, set password, configure account to change
-            // password on first login, etc
-
-            // NOTE: Useful (immutable) attributes to have in IDP registration
-            // account.getType() : OPERTUSMUNDI, VENDOR
-
+            final List<UserDto> usersForUsername = keycloakAdminService.findUsers(queryForUsername);
+            Assert.state(usersForUsername.size() < 2,
+                () -> "expected no more than one IDP user for a given username [username=" + userName + "]");
+    
+            UserDto user = null;
+            if (usersForUsername.isEmpty()) {
+                // Create the user
+                user = new UserDto();
+                user.setUsername(userName);
+                user.setEmail(userEmail);
+                // Add opertusmundi-specific attributes (accountType etc.)
+                user.setAttributes(Collections.singletonMap(
+                    EnumAccountAttribute.ACCOUNT_TYPE.key(), new String[] { account.getType().name() }));
+                UUID userId = keycloakAdminService.createUser(user);
+                logger.info("Created user [{}] on the IDP [id={}]", userName, userId);
+                user = keycloakAdminService.getUser(userId).get();
+            } else {
+                // The user is present; just retrieve first of singleton result
+                user = usersForUsername.get(0);
+            }
+    
+            Assert.state(user.getId() != null, "expected a non-null user identifier (from the IDP side)");
+            keycloakAdminService.resetPasswordForUser(user.getId(), password, true /* temporary */);
+            logger.info("The user [{}] is reset to have a temporary (OTP) password [id={}]", 
+                userName, user.getId());
+            
         } catch (final Exception ex) {
             final String message = String.format(
                 "Failed to create new IDP account. [userKey=%s, userName=%s]",
@@ -255,10 +313,10 @@ public class ActivateAccountTaskService extends AbstractTaskService {
                 .add("userKey", userKey.toString())
                 .add("otp", password);
     
-            final Map<String, Object>             model    = this.messageHelper.createModel(type, builder);
-            final EmailAddressDto                 sender   = this.messageHelper.getSender(type, model);
-            final String                          subject  = this.messageHelper.composeSubject(type, model);
-            final String                          template = this.messageHelper.resolveTemplate(type, model);
+            final Map<String, Object>             model    = this.mailMessageHelper.createModel(type, builder);
+            final EmailAddressDto                 sender   = this.mailMessageHelper.getSender(type, model);
+            final String                          subject  = this.mailMessageHelper.composeSubject(type, model);
+            final String                          template = this.mailMessageHelper.resolveTemplate(type, model);
             final MessageDto<Map<String, Object>> message  = new MessageDto<>();
     
             message.setSender(sender);
@@ -301,20 +359,4 @@ public class ActivateAccountTaskService extends AbstractTaskService {
 
         this.accountRepository.saveAndFlush(account);
     }
-
-    private String generatePassword(int length) {
-        Assert.isTrue(length > 7, "Expected password length to be greater or equal to 8");
-
-        final CharacterRule alphabets = new CharacterRule(EnglishCharacterData.Alphabetical);
-        final CharacterRule digits    = new CharacterRule(EnglishCharacterData.Digit);
-        final CharacterRule lowerCase = new CharacterRule(EnglishCharacterData.LowerCase);
-        final CharacterRule special   = new CharacterRule(EnglishCharacterData.Special);
-        final CharacterRule upperCase = new CharacterRule(EnglishCharacterData.UpperCase);
-
-        final PasswordGenerator passwordGenerator = new PasswordGenerator();
-        final String            password          = passwordGenerator.generatePassword(length, alphabets, digits, lowerCase, special, upperCase);
-
-        return password;
-    }
-
 }
