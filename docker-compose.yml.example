@@ -20,6 +20,11 @@ services:
     #  source: ./config/log4j2-syslog.xml
     #  target: /app/config/log4j2.xml
     #  read_only: true
+    ## note: override container-wide keystore
+    #- type: 'bind'
+    #  source: ./config/application.keystore
+    #  target: /app/config/application.keystore
+    #  read_only: true
     - type: 'volume'
       source: files_assets
       target: /var/local/opertusmundi/files/assets
@@ -29,6 +34,12 @@ services:
     - type: 'volume'
       source: files_drafts
       target: /var/local/opertusmundi/files/drafts
+    - type: 'volume'
+      source: files_invoices
+      target: /var/local/opertusmundi/files/invoices
+    - type: 'volume'
+      source: files_orders
+      target: /var/local/opertusmundi/files/orders
     - type: 'volume'
       source: files_users
       target: /var/local/opertusmundi/files/users
@@ -42,7 +53,9 @@ services:
       source: profile_input
       target: /var/local/opertusmundi/profile/input
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Xms128m -Djava.security.egd=file:///dev/urandom'
+      JAVA_OPTS: >-
+        -server -Xmx512m -Xms128m -Djava.security.egd=file:///dev/urandom
+      #  -Djavax.net.ssl.trustStore=/app/config/application.keystore -Djavax.net.ssl.trustStorePassword=secret 
       MARKETPLACE_URL: ${MARKETPLACE_URL}
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_USERNAME: ${DATABASE_USERNAME}
@@ -65,9 +78,10 @@ services:
       PROFILE_BASE_URL: ${PROFILE_BASE_URL}
       PID_BASE_URL: ${PID_BASE_URL}
       ELASTICSEARCH_BASE_URL: ${ELASTICSEARCH_BASE_URL}
-      KEYCLOAK_URL: ""
-      KEYCLOAK_REALM: ""
-      KEYCLOAK_REFRESH_TOKEN_FILE: ""
+      KEYCLOAK_URL: http://keycloak-opertusmundi:8080/auth
+      #KEYCLOAK_URL: https://keycloak.opertusmundi.192-168-1-9.nip.io:38443/auth
+      KEYCLOAK_REALM: master
+      KEYCLOAK_REFRESH_TOKEN_FILE: /secrets/keycloak-refresh-token
     ports:
     - '8005:8005'
     networks:
@@ -88,6 +102,12 @@ volumes:
   files_users:
     external: true
     name: opertusmundi_files_users
+  files_invoices:
+    external: true
+    name: opertusmundi_files_invoices
+  files_orders:
+    external: true
+    name: opertusmundi_files_orders
   files_temp: {}
   ingest_input:
     external: true
