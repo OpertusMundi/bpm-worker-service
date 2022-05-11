@@ -105,6 +105,13 @@ public class ActivateAccountTaskService extends AbstractTaskService {
         Assert.isTrue(this.otpLength >= MIN_PASSWORD_LENGTH, 
             () -> "Expected OTP password length to be >= " + MIN_PASSWORD_LENGTH);
     }
+
+    @PostConstruct
+    void countUsersOnKeycloak()
+    {
+        final int n = keycloakAdminService.countUsers(null);
+        logger.info("Counted {} users on Keycloak", n);
+    }
     
     @Override
     public String getTopicName() {
