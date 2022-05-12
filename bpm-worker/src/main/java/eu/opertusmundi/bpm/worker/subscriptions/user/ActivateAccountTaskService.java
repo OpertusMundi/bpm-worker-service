@@ -8,7 +8,6 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,7 @@ import eu.opertusmundi.common.domain.AccountEntity;
 import eu.opertusmundi.common.feign.client.EmailServiceFeignClient;
 import eu.opertusmundi.common.model.BaseResponse;
 import eu.opertusmundi.common.model.account.AccountMessageCode;
+import eu.opertusmundi.common.model.account.EnumAccountAttribute;
 import eu.opertusmundi.common.model.account.EnumActivationStatus;
 import eu.opertusmundi.common.model.account.SimpleAccountDto;
 import eu.opertusmundi.common.model.email.EmailAddressDto;
@@ -47,13 +47,11 @@ import eu.opertusmundi.common.model.file.EnumUserFileReservedEntry;
 import eu.opertusmundi.common.model.file.UserFileNamingStrategyContext;
 import eu.opertusmundi.common.model.keycloak.server.UserDto;
 import eu.opertusmundi.common.model.keycloak.server.UserQueryDto;
-import eu.opertusmundi.common.model.account.EnumAccountAttribute;
 import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.DefaultUserFileNamingStrategy;
 import eu.opertusmundi.common.service.KeycloakAdminService;
 import eu.opertusmundi.common.service.messaging.MailMessageHelper;
 import eu.opertusmundi.common.service.messaging.MailModelBuilder;
-
 import feign.FeignException;
 
 @Service
@@ -66,7 +64,6 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     private static final int MIN_PASSWORD_LENGTH = 8;
     
     private static final CharacterRule[] PASSWORD_POLICY = new CharacterRule[] {
-        // note: do not include special characters as a password will be emailed into an HTML body
         new CharacterRule(EnglishCharacterData.Alphabetical),
         new CharacterRule(EnglishCharacterData.LowerCase),
         new CharacterRule(EnglishCharacterData.UpperCase),
@@ -253,9 +250,9 @@ public class ActivateAccountTaskService extends AbstractTaskService {
         Assert.notNull(account, "Expected a non-null account");
         Assert.hasText(password, "Expected a non-empty password");
 
-        final String userName = account.getUsername();
+        final String userName  = account.getUsername();
         final String userEmail = userName;
-        final UUID userKey  = account.getKey();
+        final UUID   userKey   = account.getKey();
         
         Assert.hasText(userName, "Expected an non-empty username");
         logger.info("Setting up IDP account for user {} [key={}]", userName, userKey);
@@ -276,8 +273,9 @@ public class ActivateAccountTaskService extends AbstractTaskService {
                 user.setUsername(userName);
                 user.setEmail(userEmail);
                 // Add opertusmundi-specific attributes (accountType etc.)
-                user.setAttributes(Collections.singletonMap(
-                    EnumAccountAttribute.ACCOUNT_TYPE.key(), new String[] { account.getType().name() }));
+                user.setAttributes(
+                    Collections.singletonMap(EnumAccountAttribute.ACCOUNT_TYPE.key(), new String[]{account.getType().name()})
+                );
                 UUID userId = keycloakAdminService.createUser(user);
                 logger.info("Created user [{}] on the IDP [id={}]", userName, userId);
                 user = keycloakAdminService.getUser(userId).get();
@@ -288,9 +286,7 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     
             Assert.state(user.getId() != null, "expected a non-null user identifier (from the IDP side)");
             keycloakAdminService.resetPasswordForUser(user.getId(), password, true /* temporary */);
-            logger.info("The user [{}] is reset to have a temporary (OTP) password [id={}]", 
-                userName, user.getId());
-            
+            logger.info("The user [{}] is reset to have a temporary (OTP) password [id={}]", userName, user.getId());
         } catch (final Exception ex) {
             final String message = String.format(
                 "Failed to create new IDP account. [userKey=%s, userName=%s]",
