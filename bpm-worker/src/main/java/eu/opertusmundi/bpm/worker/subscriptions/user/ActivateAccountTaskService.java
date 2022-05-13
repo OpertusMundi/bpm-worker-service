@@ -36,6 +36,7 @@ import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.domain.AccountEntity;
 import eu.opertusmundi.common.feign.client.EmailServiceFeignClient;
 import eu.opertusmundi.common.model.BaseResponse;
+import eu.opertusmundi.common.model.EnumAccountType;
 import eu.opertusmundi.common.model.account.AccountMessageCode;
 import eu.opertusmundi.common.model.account.EnumAccountAttribute;
 import eu.opertusmundi.common.model.account.EnumActivationStatus;
@@ -311,8 +312,11 @@ public class ActivateAccountTaskService extends AbstractTaskService {
         final UUID   userKey  = account.getKey();
         
         try {
-            final EnumMailType     type     = EnumMailType.ACCOUNT_ACTIVATION_SUCCESS;
-            final MailModelBuilder builder  = MailModelBuilder.builder()
+            final EnumMailType type = account.getType() == EnumAccountType.OPERTUSMUNDI
+                ? EnumMailType.ACCOUNT_ACTIVATION_SUCCESS
+                : EnumMailType.VENDOR_ACCOUNT_ACTIVATION_SUCCESS;
+            
+            final MailModelBuilder builder = MailModelBuilder.builder()
                 .add("userKey", userKey.toString())
                 .add("otp", password);
     
