@@ -273,6 +273,8 @@ public class ActivateAccountTaskService extends AbstractTaskService {
                 user = new UserDto();
                 user.setUsername(userName);
                 user.setEmail(userEmail);
+                user.setEmailVerified(true);
+                user.setEnabled(true);
                 // Add opertusmundi-specific attributes (accountType etc.)
                 user.setAttributes(
                     Collections.singletonMap(EnumAccountAttribute.ACCOUNT_TYPE.key(), new String[]{account.getType().name()})
