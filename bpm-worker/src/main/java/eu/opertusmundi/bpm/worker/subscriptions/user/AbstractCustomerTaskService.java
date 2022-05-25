@@ -8,9 +8,8 @@ import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.profiler.DataProfilerServiceException;
-import eu.opertusmundi.common.model.workflow.EnumProcessInstanceVariable;
 
 public abstract class AbstractCustomerTaskService extends AbstractTaskService {
 
@@ -19,7 +18,7 @@ public abstract class AbstractCustomerTaskService extends AbstractTaskService {
     protected static String VARIABLE_USER_KEY = "userKey";
     protected static String VARIABLE_REGISTRATION_KEY = "registrationKey";
 
-    protected UUID getUserKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+    protected UUID getUserKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String userKey = (String) externalTask.getVariable(VARIABLE_USER_KEY);
         if (StringUtils.isBlank(userKey)) {
             logger.error("Expected user key to be non empty!");
@@ -30,7 +29,7 @@ public abstract class AbstractCustomerTaskService extends AbstractTaskService {
         return UUID.fromString(userKey);
     }
 
-    protected UUID getRegistrationKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
+    protected UUID getRegistrationKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
         final String registrationKey = (String) externalTask.getVariable(VARIABLE_REGISTRATION_KEY);
         if (StringUtils.isBlank(registrationKey)) {
             logger.error("Expected registration key to be non empty");
@@ -39,12 +38,6 @@ public abstract class AbstractCustomerTaskService extends AbstractTaskService {
         }
 
         return UUID.fromString(registrationKey);
-    }
-    
-    protected String getErrorMessages(ExternalTask externalTask, ExternalTaskService externalTaskService) throws DataProfilerServiceException {
-        final String errorDetails = (String) externalTask.getVariable(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_MESSAGES.getValue());
-
-        return errorDetails;
     }
 
 }

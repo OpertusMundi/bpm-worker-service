@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
@@ -12,8 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
@@ -77,12 +78,24 @@ public class PublishTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask, variables);
 
             logger.info("Completed task. [taskId={}]", taskId);
-        } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
-
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-            );
+        } catch (final ServiceException ex) {
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
+            if (ExceptionUtils.indexOfType(ex, feign.RetryableException.class) != -1) {
+                // For feign client retryable exceptions, create a new incident
+                // instead of canceling the process instance. Errors such as
+                // network connectivity, unavailable services etc may be
+                // automatically resolved after retrying the failed task
+                //
+                // See:
+                // https://javadoc.io/doc/io.github.openfeign/feign-core/latest/feign/RetryableException.html
+                //
+                // "This exception is raised when the Response is deemed to be
+                // retryable, typically via an ErrorDecoder when the status is
+                // 503."
+                this.handleFailure(externalTaskService, externalTask, ex);
+            } else {
+                this.handleBpmnError(externalTaskService, externalTask, ex);
+            }
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 

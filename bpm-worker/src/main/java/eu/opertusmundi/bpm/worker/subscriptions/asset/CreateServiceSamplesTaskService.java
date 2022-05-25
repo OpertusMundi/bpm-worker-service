@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.catalogue.client.CatalogueItemMetadataCommandDto;
 import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
@@ -136,12 +137,10 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
-        } catch (final BpmnWorkerException ex) {
-            logger.error(String.format("Operation has failed. [details=%s]", ex.getErrorDetails()), ex);
+        } catch (final ServiceException ex) {
+            logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            externalTaskService.handleFailure(
-                externalTask, ex.getMessage(), ex.getErrorDetails(), ex.getRetries(), ex.getRetryTimeout()
-            );
+            this.handleBpmnError(externalTaskService, externalTask, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 

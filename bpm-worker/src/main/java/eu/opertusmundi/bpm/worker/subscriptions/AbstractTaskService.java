@@ -42,7 +42,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     @Autowired
     protected ObjectMapper objectMapper;
-    
+
     @Autowired
     protected ExternalTaskClient externalTaskClient;
 
@@ -113,10 +113,10 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     protected void handleFailure(ExternalTaskService externalTaskService, ExternalTask externalTask, Exception ex) {
         this.handleFailure(externalTaskService, externalTask, DEFAULT_ERROR_MESSAGE, ex);
     }
-    
+
     /**
      * Reports a failure to execute a task and creates an incident for this task
-     * 
+     *
      * @param externalTaskService
      * @param externalTask
      * @param errorMessage
@@ -127,20 +127,20 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
         externalTaskService.handleFailure(
             externalTask, errorMessage, errorDetails, DEFAULT_RETRY_COUNT, DEFAULT_RETRY_TIMEOUT
-        );       
+        );
     }
-    
+
     protected void handleBpmnError(ExternalTaskService externalTaskService, ExternalTask externalTask, String errorCode, ServiceException ex) {
-        this.handleBpmnError(externalTaskService, externalTask, errorCode, DEFAULT_ERROR_MESSAGE, ex);    
+        this.handleBpmnError(externalTaskService, externalTask, errorCode, DEFAULT_ERROR_MESSAGE, ex);
     }
-    
+
     protected void handleBpmnError(ExternalTaskService externalTaskService, ExternalTask externalTask, ServiceException ex) {
-        this.handleBpmnError(externalTaskService, externalTask, DEFAULT_ERROR_CODE, DEFAULT_ERROR_MESSAGE, ex);    
+        this.handleBpmnError(externalTaskService, externalTask, DEFAULT_ERROR_CODE, DEFAULT_ERROR_MESSAGE, ex);
     }
 
     /**
      * Reports a business error in the context of a running task
-     * 
+     *
      * @param externalTaskService
      * @param externalTask
      * @param errorCode
@@ -150,7 +150,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     protected void handleBpmnError(
         ExternalTaskService externalTaskService, ExternalTask externalTask, String errorCode, String errorMessage, ServiceException ex
     ) {
-        final String error          = this.exceptionToString(ex);
+        final String errorDetails   = this.exceptionToString(ex);
         String       messagesAsJson = "";
         try {
             // Set default message
@@ -161,16 +161,16 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         } catch (Exception sEx) {
             logger.error("Failed to serialize exception messages");
         }
-        
+
         // Set variables
         final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
-            .variableAsString(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_DETAILS.getValue(), error)
+            .variableAsString(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_DETAILS.getValue(), errorDetails)
             .variableAsString(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_MESSAGES.getValue(), messagesAsJson)
             .buildValues();
-        
-        externalTaskService.handleBpmnError(externalTask, errorCode, errorMessage, variables);       
+
+        externalTaskService.handleBpmnError(externalTask, errorCode, errorMessage, variables);
     }
-    
+
     protected String getVariableAsString(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
@@ -192,6 +192,18 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return UUID.fromString(value);
     }
 
+    protected String getErrorDetails(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        final String errorDetails = (String) externalTask.getVariable(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_DETAILS.getValue());
+
+        return errorDetails;
+    }
+
+    protected String getErrorMessages(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        final String errorMessages = (String) externalTask.getVariable(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_MESSAGES.getValue());
+
+        return errorMessages;
+    }
+
     private String exceptionToString(Exception ex) {
         final String result = StringUtils.join(
             ExceptionUtils.getThrowableList(ex).stream()
@@ -200,7 +212,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
                 .collect(Collectors.toList()),
             ErrorSeparator
         );
-        
+
         return result;
     }
 }
