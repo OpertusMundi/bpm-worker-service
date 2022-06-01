@@ -142,8 +142,8 @@ public class IngestTaskService extends AbstractTaskService {
         // Resolve path
         final String path = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
 
-        final String                  idempotentKey = resource.getId();
-        final String                  tableName     = resource.getId().toString();
+        final String                  tableName     = resource.getId();
+        final String                  idempotentKey = tableName;
         String                        ticket;
         ServerIngestStatusResponseDto result        = null;
         int                           counter       = 0;
