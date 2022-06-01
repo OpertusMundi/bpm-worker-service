@@ -72,15 +72,13 @@ services:
       TRANSFORM_BASE_URL: ${TRANSFORM_BASE_URL}
       MAILER_BASE_URL: ${MAILER_BASE_URL}
       MESSENGER_BASE_URL: ${MESSENGER_BASE_URL}
-      RATING_BASE_URL: ${RATING_BASE_URL} 
-      RATING_USERNAME: ${RATING_USERNAME}
-      RATING_PASSWORD_FILE: /secrets/rating-password
       PROFILE_BASE_URL: ${PROFILE_BASE_URL}
       PID_BASE_URL: ${PID_BASE_URL}
       ELASTICSEARCH_BASE_URL: ${ELASTICSEARCH_BASE_URL}
       KEYCLOAK_URL: http://keycloak-opertusmundi:8080/auth
       #KEYCLOAK_URL: https://keycloak.opertusmundi.192-168-1-9.nip.io:38443/auth
       KEYCLOAK_REALM: master
+      KEYCLOAK_SERVICES_REALM: Services
       KEYCLOAK_REFRESH_TOKEN_FILE: /secrets/keycloak-refresh-token
     ports:
     - '8005:8005'
