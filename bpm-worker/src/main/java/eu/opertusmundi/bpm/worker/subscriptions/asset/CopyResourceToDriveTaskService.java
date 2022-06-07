@@ -29,6 +29,8 @@ public class CopyResourceToDriveTaskService extends AbstractTaskService {
 
     private static final Logger logger = LoggerFactory.getLogger(CopyResourceToDriveTaskService.class);
 
+    private static final String TEMP_SUFFIX = "copying";
+
     @Value("${opertusmundi.bpm.worker.tasks.copy-resource-to-drive.lock-duration:300000}")
     private Long lockDurationMillis;
 
@@ -50,7 +52,7 @@ public class CopyResourceToDriveTaskService extends AbstractTaskService {
         final String taskId      = externalTask.getId();
         final UUID   businessKey = UUID.fromString(externalTask.getBusinessKey());
         File         temp        = null;
-        
+
         try {
             logger.info("Received task. [taskId={}]", taskId);
 
@@ -63,7 +65,7 @@ public class CopyResourceToDriveTaskService extends AbstractTaskService {
             if (copyOperation.getCompletedOn() == null) {
                 final String source = copyOperation.getSourcePath();
                 final String target = copyOperation.getTargetPath();
-                temp = new File(target + "." + businessKey.toString());
+                temp = new File(target + "." + businessKey.toString() + "." + TEMP_SUFFIX);
 
                 try (
                     InputStream inputStream   = new FileInputStream(source);
@@ -72,23 +74,23 @@ public class CopyResourceToDriveTaskService extends AbstractTaskService {
                     IOUtils.copyLarge(inputStream, outputStream);
 
                     // After copying, rename file
-                    FileUtils.moveFile(temp, new File(target), StandardCopyOption.REPLACE_EXISTING);
+                    FileUtils.moveFile(temp, new File(target), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
                 } catch (Exception ex) {
                     throw new ServiceException(BasicMessageCode.IOError, "Failed to copy files", ex);
                 }
             }
-            
+
             this.fileCopyResourceRepository.complete(businessKey);
-            
+
             // Complete task
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
-            
+
             this.fileCopyResourceRepository.fail(businessKey, ex.getMessage());
-            
+
             this.handleBpmnError(externalTaskService, externalTask, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
