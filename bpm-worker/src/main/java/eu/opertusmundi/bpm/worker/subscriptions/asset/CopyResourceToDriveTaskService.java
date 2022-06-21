@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.ServiceException;
@@ -91,7 +92,7 @@ public class CopyResourceToDriveTaskService extends AbstractTaskService {
 
             this.fileCopyResourceRepository.fail(businessKey, ex.getMessage());
 
-            this.handleBpmnError(externalTaskService, externalTask, ex);
+            this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.CopyResourceToDrive, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
             this.handleFailure(externalTaskService, externalTask, ex);

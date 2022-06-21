@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
@@ -140,7 +141,7 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            this.handleBpmnError(externalTaskService, externalTask, ex);
+            this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishAsset, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 

@@ -35,7 +35,6 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
     private static final String ErrorSeparator = "||";
 
-    protected static final String DEFAULT_ERROR_CODE    = "Operation has failed";
     protected static final String DEFAULT_ERROR_MESSAGE = "Operation has failed";
     protected static final int    DEFAULT_RETRY_COUNT   = 0;
     protected static final long   DEFAULT_RETRY_TIMEOUT = 2000L;
@@ -134,10 +133,6 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         this.handleBpmnError(externalTaskService, externalTask, errorCode, DEFAULT_ERROR_MESSAGE, ex);
     }
 
-    protected void handleBpmnError(ExternalTaskService externalTaskService, ExternalTask externalTask, ServiceException ex) {
-        this.handleBpmnError(externalTaskService, externalTask, DEFAULT_ERROR_CODE, DEFAULT_ERROR_MESSAGE, ex);
-    }
-
     /**
      * Reports a business error in the context of a running task
      *
@@ -184,6 +179,19 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return value;
     }
 
+    protected boolean getVariableAsBoolean(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String name
+    ) throws BpmnWorkerException {
+        final Boolean value = (Boolean) externalTask.getVariable(name);
+        if (value == null) {
+            logger.error("Expected non empty variable value. [name={}]", name);
+
+            throw this.buildVariableNotFoundException(name);
+        }
+
+        return value;
+    }
+    
     protected UUID getVariableAsUUID(
         ExternalTaskService externalTaskService, ExternalTask externalTask, String name
     ) throws BpmnWorkerException {

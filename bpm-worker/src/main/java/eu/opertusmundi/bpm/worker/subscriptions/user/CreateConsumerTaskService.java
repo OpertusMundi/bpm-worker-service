@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
@@ -70,7 +71,7 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
-            this.handleBpmnError(externalTaskService, externalTask, ex);
+            this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.ConsumerRegistration, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 

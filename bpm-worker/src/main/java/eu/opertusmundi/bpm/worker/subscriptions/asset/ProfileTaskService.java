@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
@@ -141,7 +142,7 @@ public class ProfileTaskService extends AbstractTaskService {
                 // 503."
                 this.handleFailure(externalTaskService, externalTask, ex);
             } else {
-                this.handleBpmnError(externalTaskService, externalTask, ex);
+                this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishAsset, ex);
             }
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
