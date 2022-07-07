@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
@@ -15,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.EnumPublishRequestType;
 import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
@@ -22,6 +22,7 @@ import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
+import eu.opertusmundi.common.model.asset.service.UserServiceDto;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
@@ -33,6 +34,8 @@ import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
+import eu.opertusmundi.common.service.UserServiceFileManager;
+import eu.opertusmundi.common.service.UserServiceService;
 
 @Service
 public class IngestTaskService extends AbstractTaskService {
@@ -51,8 +54,14 @@ public class IngestTaskService extends AbstractTaskService {
     private DraftFileManager draftFileManager;
 
     @Autowired
+    private UserServiceFileManager userServiceFileManager;
+    
+    @Autowired
     private ProviderAssetService providerAssetService;
 
+    @Autowired
+    private UserServiceService userServiceService;
+    
     @Autowired
     private IngestService ingestService;
 
@@ -63,53 +72,25 @@ public class IngestTaskService extends AbstractTaskService {
 
     @Override
     public final void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        final String taskId = externalTask.getId();
+
+        logger.info("Received task. [taskId={}]", taskId);
+
+        final String                 requestType = this.getVariableAsString(externalTask, externalTaskService, "requestType");
+        final EnumPublishRequestType type        = EnumPublishRequestType.valueOf(requestType);
+
+        logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
+
         try {
-            final String taskId = externalTask.getId();
-
-            logger.info("Received task. [taskId={}]", taskId);
-
-            this.preExecution(externalTask, externalTaskService);
-
-            final UUID    draftKey     = this.getAssetKey(externalTask, externalTaskService);
-            final UUID    publisherKey = this.getPublisherKey(externalTask, externalTaskService);
-            final boolean published    = this.isPublished(externalTask, externalTaskService);
-
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-
-            final List<ResourceDto> resources = draft.getCommand().getResources();
-
-            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-
-            // Process all resources
-            for (ResourceDto resource : resources) {
-                if (resource.getType() != EnumResourceType.FILE) {
-                    continue;
-                }
-                final FileResourceDto               fileResource = (FileResourceDto) resource;
-                final ServerIngestResultResponseDto ingestResult = this.ingest(
-                    externalTask, externalTaskService, publisherKey, draftKey, fileResource
-                );
-
-                // Update metadata for the specific file
-                providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), ingestResult);
-
-                if(published) {
-                    final ServerIngestPublishResponseDto publishResult = this.publish(
-                        externalTask, externalTaskService, publisherKey, draftKey, fileResource, ingestResult.getTable()
-                    );
-
-                    providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), publishResult);
-
-                    // TODO: Update services
-                    logger.warn(publishResult.toString());
-                }
+            switch (type) {
+                case CATALOGUE_ASSET :
+                    this.ingestCatalogueAsset(externalTask, externalTaskService);
+                    break;
+                case USER_SERVICE :
+                    this.ingestUserService(externalTask, externalTaskService);
+                    break;
             }
-
-            // Complete task
-            this.postExecution(externalTask, externalTaskService);
-
-            externalTaskService.complete(externalTask);
-
+            
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -127,7 +108,7 @@ public class IngestTaskService extends AbstractTaskService {
                 // 503."
                 this.handleFailure(externalTaskService, externalTask, ex);
             } else {
-                this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishAsset, ex);
+                this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishUserService, ex);
             }
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -135,15 +116,82 @@ public class IngestTaskService extends AbstractTaskService {
             this.handleFailure(externalTaskService, externalTask, ex);
         }
     }
-
-    private ServerIngestResultResponseDto ingest(
-        ExternalTask externalTask, ExternalTaskService externalTaskService,
-        UUID publisherKey, UUID draftKey, FileResourceDto resource
+    
+    private final void ingestCatalogueAsset(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws InterruptedException {
-        // Resolve path
-        final String path = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
+        final UUID    draftKey     = this.getVariableAsUUID(externalTaskService, externalTask, "assetKey");
+        final UUID    publisherKey = this.getVariableAsUUID(externalTaskService, externalTask, "publisherKey");
+        final boolean published    = this.getVariableAsBooleanString(externalTask, externalTaskService, "published");
 
-        final String                  tableName     = resource.getId();
+        final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+
+        final List<ResourceDto> resources = draft.getCommand().getResources();
+
+        // Process all resources
+        for (ResourceDto resource : resources) {
+            if (resource.getType() != EnumResourceType.FILE) {
+                continue;
+            }
+            final FileResourceDto fileResource = (FileResourceDto) resource;
+            final String          tableName    = fileResource.getId();
+            final String          fileName     = fileResource.getFileName();
+            final String          path         = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
+            
+            final ServerIngestResultResponseDto ingestResult = this.ingest(externalTask, externalTaskService, tableName, path);
+
+            // Update metadata for the specific file
+            providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), ingestResult);
+
+            if(published) {
+                final ServerIngestPublishResponseDto publishResult = this.publish(
+                    externalTask, externalTaskService, ingestResult.getTable()
+                );
+
+                providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), publishResult);
+
+                // TODO: Update services
+                logger.warn(publishResult.toString());
+            }
+        }
+
+        // Complete task
+        externalTaskService.complete(externalTask);
+    }
+
+    private final void ingestUserService(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
+    ) throws InterruptedException {
+        final UUID ownerKey   = this.getVariableAsUUID(externalTaskService, externalTask, "ownerKey");
+        final UUID parentKey  = this.getVariableAsUUID(externalTaskService, externalTask, "parentKey");
+        final UUID serviceKey = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+
+        final UserServiceDto service = userServiceService.findOne(ownerKey, parentKey, serviceKey);
+
+        final String tableName = service.getKey().toString();
+        final String fileName  = service.getFileName();
+        final String path      = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);
+
+        // Ingest
+        final ServerIngestResultResponseDto ingestResult = this.ingest(externalTask, externalTaskService, tableName, path);
+        userServiceService.updateResourceIngestionData(ownerKey, serviceKey, ingestResult);
+
+        // Publish to GeoServer
+        final ServerIngestPublishResponseDto publishResult = this.publish(
+            externalTask, externalTaskService, ingestResult.getTable()
+        );
+        userServiceService.updateResourceIngestionData(ownerKey, serviceKey, publishResult);
+
+        // Publish
+        userServiceService.publish(ownerKey, parentKey, serviceKey);
+        
+        // Complete task
+        externalTaskService.complete(externalTask);
+    }
+    
+    private ServerIngestResultResponseDto ingest(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String tableName, String path
+    ) throws InterruptedException {
         final String                  idempotentKey = tableName;
         String                        ticket;
         ServerIngestStatusResponseDto result        = null;
@@ -202,51 +250,11 @@ public class IngestTaskService extends AbstractTaskService {
     }
 
     private ServerIngestPublishResponseDto publish(
-        ExternalTask externalTask, ExternalTaskService externalTaskService,
-        UUID publisherKey, UUID draftKey, FileResourceDto resource, String tableName
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String tableName
     ) throws InterruptedException {
         final String idempotentKey = UUID.randomUUID().toString();
 
         return this.ingestService.publish(idempotentKey, tableName);
-    }
-
-    private UUID getAssetKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String name     = "assetKey";
-        final String draftKey = (String) externalTask.getVariable(name);
-
-        if (StringUtils.isBlank(draftKey)) {
-            logger.error("Expected draft key to be non empty. [name={}]", name);
-
-            throw this.buildVariableNotFoundException(name);
-        }
-
-        return UUID.fromString(draftKey);
-    }
-
-    private UUID getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String name         = "publisherKey";
-        final String publisherKey = (String) externalTask.getVariable(name);
-
-        if (StringUtils.isBlank(publisherKey)) {
-            logger.error("Expected publisher key to be non empty. [name={}]", name);
-
-            throw this.buildVariableNotFoundException(name);
-        }
-
-        return UUID.fromString(publisherKey);
-    }
-
-    private boolean isPublished(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String name      = "published";
-        final String published = (String) externalTask.getVariable(name);
-
-        if (StringUtils.isBlank(published)) {
-            logger.error("Expected variable to be non empty. [name={}]", name);
-
-            throw this.buildVariableNotFoundException(name);
-        }
-
-        return Boolean.parseBoolean(published);
     }
 
     private String getResource(
@@ -264,13 +272,20 @@ public class IngestTaskService extends AbstractTaskService {
                 .build();
         }
     }
+    
+    private String getUserServiceResource(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, UUID ownerKey, UUID serviceKey, String fileName
+    ) throws BpmnWorkerException {
+        try {
+            final Path path = this.userServiceFileManager.resolveResourcePath(ownerKey, serviceKey, fileName);
 
-    protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-
+            return path.toString();
+        } catch(final FileSystemException ex) {
+            throw BpmnWorkerException.builder()
+                .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
+                .message(String.format("Failed to resolve resource file [%s]", fileName))
+                .errorDetails(ex.getRootCause().getMessage())
+                .build();
+        }
     }
-
-    protected void postExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-
-    }
-
 }

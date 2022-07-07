@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
@@ -19,15 +18,16 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.EnumPublishRequestType;
 import eu.opertusmundi.bpm.worker.subscriptions.user.AbstractCustomerTaskService;
 import eu.opertusmundi.common.model.Message;
-import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
-import eu.opertusmundi.common.model.ingest.IngestServiceException;
+import eu.opertusmundi.common.model.asset.service.UserServiceDto;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
+import eu.opertusmundi.common.service.UserServiceService;
 
 @Service
 public class CancelPublishTaskService extends AbstractCustomerTaskService {
@@ -43,6 +43,9 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
     @Autowired
     private ProviderAssetService providerAssetService;
 
+    @Autowired
+    private UserServiceService userServiceService;
+
     @Override
     public String getTopicName() {
         return "cancelPublish";
@@ -55,23 +58,28 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
 
     @Override
     public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        final String taskId = externalTask.getId();
+
+        logger.info("Received task. [taskId={}]", taskId);
+
+        final String                 requestType = this.getVariableAsString(externalTask, externalTaskService, "requestType");
+        final EnumPublishRequestType type        = EnumPublishRequestType.valueOf(requestType);
+
+        logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
+
         try {
-            final String taskId = externalTask.getId();
-
-            logger.info("Received task. [taskId={}]", taskId);
-
-            final UUID   draftKey      = this.getDraftKey(externalTask, externalTaskService);
-            final UUID   publisherKey  = this.getPublisherKey(externalTask, externalTaskService);
-            final String errorDetails = this.getErrorDetails(externalTask, externalTaskService);
-            final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
-
-            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-
-            this.cancelPublish(publisherKey, draftKey, errorDetails, errorMessages);
-
+            switch (type) {
+                case CATALOGUE_ASSET :
+                    this.cancelPublishAsset(externalTask, externalTaskService);
+                    break;
+                case USER_SERVICE :
+                    this.cancelPublishUserService(externalTask, externalTaskService);
+                    break;
+            }
+            
             externalTaskService.complete(externalTask);
-
             logger.info("Completed task. [taskId={}]", taskId);
+            
         } catch (final BpmnWorkerException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
@@ -86,9 +94,14 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
     }
 
     @Transactional
-    private void cancelPublish(
-        UUID publisherKey, UUID draftKey, String errorDetails, String errorMessages
-    ) throws ServiceException, JsonMappingException, JsonProcessingException {
+    public void cancelPublishAsset(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
+    ) throws JsonMappingException, JsonProcessingException {
+        final UUID   draftKey      = this.getVariableAsUUID(externalTaskService, externalTask, "draftKey");
+        final UUID   publisherKey  = this.getVariableAsUUID(externalTaskService, externalTask, "publisherKey");
+        final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
+        final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
+
         List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
 
         // Remove all ingested resources
@@ -99,42 +112,33 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
             .collect(Collectors.toList());
 
         for (final ServiceResourceDto r : serviceResources) {
-            this.deleteIngestedResource(r);
+            this.deleteIngestedResource(r.getId());
         } ;
 
         // Reset draft
         providerAssetService.cancelPublishDraft(publisherKey, draftKey, errorDetails, messages);
     }
 
-    private void deleteIngestedResource(ServiceResourceDto resource) {
-        final String tableName = resource.getId();
-        try {
-            this.ingestService.removeLayerAndData(tableName, null, null);
-        } catch (IngestServiceException ex) {
-            logger.error(String.format("Failed to remove data and layer for resource [tableName=%s]", tableName), ex);
-        }
+    @Transactional
+    public void cancelPublishUserService(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
+    ) throws JsonMappingException, JsonProcessingException {
+        final UUID   ownerKey      = this.getVariableAsUUID(externalTaskService, externalTask, "ownerKey");
+        final UUID   serviceKey    = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+        final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
+        final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
+
+        List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
+
+        // Remove all ingested resources
+        final UserServiceDto service = userServiceService.findOne(serviceKey);
+        this.deleteIngestedResource(service.getKey().toString());
+
+        // Reset draft
+        userServiceService.cancelPublishOperation(ownerKey, serviceKey, errorDetails, messages);
     }
-
-    private UUID getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String draftKey = (String) externalTask.getVariable("draftKey");
-        if (StringUtils.isBlank(draftKey)) {
-            logger.error("Expected draft key to be non empty");
-
-            throw this.buildVariableNotFoundException("draftKey");
-        }
-
-        return UUID.fromString(draftKey);
+    
+    private void deleteIngestedResource(String tableName) {
+        this.ingestService.removeLayerAndData(tableName, null, null);
     }
-
-    private UUID getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String publisherKey = (String) externalTask.getVariable("publisherKey");
-        if (StringUtils.isBlank(publisherKey)) {
-            logger.error("Expected publisher key to be non empty");
-
-            throw this.buildVariableNotFoundException("publisherKey");
-        }
-
-        return UUID.fromString(publisherKey);
-    }
-
 }

@@ -205,6 +205,20 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return value;
     }
     
+    protected boolean getVariableAsBooleanString(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String name
+    ) throws BpmnWorkerException {
+        final String published = (String) externalTask.getVariable(name);
+
+        if (StringUtils.isBlank(published)) {
+            logger.error("Expected variable to be non empty. [name={}]", name);
+
+            throw this.buildVariableNotFoundException(name);
+        }
+
+        return Boolean.parseBoolean(published);
+    }
+
     protected UUID getVariableAsUUID(
         ExternalTaskService externalTaskService, ExternalTask externalTask, String name
     ) throws BpmnWorkerException {

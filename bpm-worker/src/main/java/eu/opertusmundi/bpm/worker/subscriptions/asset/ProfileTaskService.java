@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
@@ -18,6 +17,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
+import eu.opertusmundi.bpm.worker.model.EnumPublishRequestType;
 import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
@@ -27,6 +27,7 @@ import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
+import eu.opertusmundi.common.model.asset.service.UserServiceDto;
 import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.profiler.DataProfilerDeferredResponseDto;
@@ -37,6 +38,8 @@ import eu.opertusmundi.common.model.profiler.DataProfilerStatusResponseDto;
 import eu.opertusmundi.common.service.DataProfilerService;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
+import eu.opertusmundi.common.service.UserServiceFileManager;
+import eu.opertusmundi.common.service.UserServiceService;
 import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
@@ -58,12 +61,18 @@ public class ProfileTaskService extends AbstractTaskService {
 
     @Autowired
     private DraftFileManager draftFileManager;
+    
+    @Autowired
+    private UserServiceFileManager userServiceFileManager;
 
     @Autowired
     private DataProfilerService profilerService;
 
     @Autowired
     private ProviderAssetService providerAssetService;
+    
+    @Autowired
+    private UserServiceService userServiceService;
 
     @Override
     public String getTopicName() {
@@ -77,57 +86,28 @@ public class ProfileTaskService extends AbstractTaskService {
 
     @Override
     public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+        final String taskId = externalTask.getId();
+
+        logger.info("Received task. [taskId={}]", taskId);
+
+        final String                 requestType = this.getVariableAsString(externalTask, externalTaskService, "requestType");
+        final EnumPublishRequestType type        = EnumPublishRequestType.valueOf(requestType);
+
+        logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
         try {
-            final String taskId = externalTask.getId();
-
-            logger.info("Received task. [taskId={}]", taskId);
-
-            final UUID                       draftKey     = this.getDraftKey(externalTask, externalTaskService);
-            final UUID                       publisherKey = this.getPublisherKey(externalTask, externalTaskService);
-
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-
-            final List<ResourceDto>   resources = draft.getCommand().getResources();
-
-            logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-
-            // Process all resources
-            for (ResourceDto resource : resources) {
-                if (resource.getType() != EnumResourceType.FILE) {
-                    continue;
-                }
-                final FileResourceDto fileResource = (FileResourceDto) resource;
-                final EnumAssetType   type         = fileResource.getCategory();
-                final JsonNode        metadata     = this.profile(
-                    externalTask, externalTaskService, publisherKey, draftKey, type, fileResource
-                );
-
-                // Update metadata for the specific file
-                providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
+            switch (type) {
+                case CATALOGUE_ASSET :
+                    this.profileCatalogueAsset(externalTask, externalTaskService);
+                    break;
+                case USER_SERVICE :
+                    this.profileUserService(externalTask, externalTaskService);
+                    break;
             }
 
-            // Update draft status if this is not a SERVICE asset
-            final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
-
-            if (draft.getCommand().getType() != EnumAssetType.SERVICE) {
-                final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
-                final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
-
-                command.setAssetKey(draftKey);
-                command.setPublisherKey(publisherKey);
-                command.setStatus(newStatus);
-
-                variables.variableAsString("status", newStatus.toString());
-
-                this.providerAssetService.updateStatus(command);
-            }
-
-            // Complete task
-            externalTaskService.complete(externalTask, variables.buildValues());
-
-            logger.info("Completed task. [taskId={}]", taskId);
+            logger.info("Completed task. [taskId={}]", taskId);          
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
+            
             if (ExceptionUtils.indexOfType(ex, feign.RetryableException.class) != -1) {
                 // For feign client retryable exceptions, create a new incident
                 // instead of canceling the process instance. Errors such as
@@ -142,7 +122,7 @@ public class ProfileTaskService extends AbstractTaskService {
                 // 503."
                 this.handleFailure(externalTaskService, externalTask, ex);
             } else {
-                this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishAsset, ex);
+                this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishUserService, ex);
             }
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -151,27 +131,94 @@ public class ProfileTaskService extends AbstractTaskService {
         }
     }
 
+    private void profileCatalogueAsset(ExternalTask externalTask, ExternalTaskService externalTaskService) throws InterruptedException {
+        final UUID draftKey     = this.getVariableAsUUID(externalTaskService, externalTask, "draftKey");
+        final UUID publisherKey = this.getVariableAsUUID(externalTaskService, externalTask, "publisherKey");
+
+        final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+
+        final List<ResourceDto> resources = draft.getCommand().getResources();
+
+        // Process all resources
+        for (ResourceDto resource : resources) {
+            if (resource.getType() != EnumResourceType.FILE) {
+                continue;
+            }
+            final FileResourceDto fileResource  = (FileResourceDto) resource;
+            final String          idempotentKey = fileResource.getId();
+            final EnumAssetType   assetType     = fileResource.getCategory();
+            final String          fileName      = fileResource.getFileName();
+            final String          crs           = fileResource.getCrs();
+            final String          encoding      = fileResource.getEncoding();
+            final String          path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
+
+            final JsonNode metadata = this.profile(externalTask, externalTaskService, idempotentKey, path, assetType, crs, encoding);
+
+            // Update metadata for the specific file
+            providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
+        }
+
+        // Update draft status if this is not a SERVICE asset
+        final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
+
+        if (draft.getCommand().getType() != EnumAssetType.SERVICE) {
+            final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
+            final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
+
+            command.setAssetKey(draftKey);
+            command.setPublisherKey(publisherKey);
+            command.setStatus(newStatus);
+
+            variables.variableAsString("status", newStatus.toString());
+
+            this.providerAssetService.updateStatus(command);
+        }
+
+        // Complete task
+        externalTaskService.complete(externalTask, variables.buildValues());
+    }
+
+    private void profileUserService(ExternalTask externalTask, ExternalTaskService externalTaskService) throws InterruptedException {
+        final UUID ownerKey   = this.getVariableAsUUID(externalTaskService, externalTask, "ownerKey");
+        final UUID serviceKey = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+
+        final UserServiceDto service = userServiceService.findOne(serviceKey);
+       
+        final String        idempotentKey = service.getKey().toString();
+        final EnumAssetType assetType     = EnumAssetType.VECTOR;
+        final String        crs           = service.getCrs();
+        final String        encoding      = service.getEncoding();
+        final String        fileName      = service.getFileName();
+        final String        path          = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);
+
+        final JsonNode metadata = this.profile(externalTask, externalTaskService, idempotentKey, path, assetType, crs, encoding);
+
+        // Update metadata for the specific file
+        userServiceService.updateMetadata(ownerKey, serviceKey, metadata);
+
+        // Complete task
+        externalTaskService.complete(externalTask);
+    }
+    
     private JsonNode profile(
-        ExternalTask externalTask, ExternalTaskService externalTaskService,
-        UUID publisherKey, UUID draftKey, EnumAssetType category, FileResourceDto resource
+        ExternalTask externalTask, ExternalTaskService externalTaskService, 
+        String idempotentKey, String path,
+        EnumAssetType assetType, String crs, String encoding
     ) throws InterruptedException {
 
         final DataProfilerOptions options = DataProfilerOptions.builder()
                 .aspectRatio(this.aspectRatio)
-                .crs(resource.getCrs())
-                .encoding(resource.getEncoding())
+                .crs(crs)
+                .encoding(encoding)
                 .height(this.height)
                 .width(this.width)
                 .build();
 
-        if (resource.getCategory() == EnumAssetType.VECTOR) {
+        if (assetType == EnumAssetType.VECTOR) {
             options.setGeometry("WKT");
         }
 
-        final String idempotentKey = resource.getId();
-        final String path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, resource.getFileName());
-
-        final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, category, path.toString(), options);
+        final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, assetType, path.toString(), options);
         final String                          ticket           = profilerResponse.getTicket();
         DataProfilerStatusResponseDto         result           = null;
         int                                   counter          = 0;
@@ -213,28 +260,6 @@ public class ProfileTaskService extends AbstractTaskService {
         }
     }
 
-    private UUID getDraftKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String draftKey = (String) externalTask.getVariable("draftKey");
-        if (StringUtils.isBlank(draftKey)) {
-            logger.error("Expected draft key to be non empty");
-
-            throw this.buildVariableNotFoundException("draftKey");
-        }
-
-        return UUID.fromString(draftKey);
-    }
-
-    private UUID getPublisherKey(ExternalTask externalTask, ExternalTaskService externalTaskService) throws BpmnWorkerException {
-        final String publisherKey = (String) externalTask.getVariable("publisherKey");
-        if (StringUtils.isBlank(publisherKey)) {
-            logger.error("Expected publisher key to be non empty");
-
-            throw this.buildVariableNotFoundException("publisherKey");
-        }
-
-        return UUID.fromString(publisherKey);
-    }
-
     private String getResource(
         ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String resourceFileName
     ) throws BpmnWorkerException {
@@ -250,5 +275,20 @@ public class ProfileTaskService extends AbstractTaskService {
                 .build();
         }
     }
+    
+    private String getUserServiceResource(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, UUID ownerKey, UUID serviceKey, String fileName
+    ) throws BpmnWorkerException {
+        try {
+            final Path path = this.userServiceFileManager.resolveResourcePath(ownerKey, serviceKey, fileName);
 
+            return path.toString();
+        } catch(final FileSystemException ex) {
+            throw BpmnWorkerException.builder()
+                .code(DataProfilerServiceMessageCode.SOURCE_NOT_FOUND)
+                .message(String.format("Failed to resolve resource file [%s]", fileName))
+                .errorDetails(ex.getRootCause().getMessage())
+                .build();
+        }
+    }
 }
