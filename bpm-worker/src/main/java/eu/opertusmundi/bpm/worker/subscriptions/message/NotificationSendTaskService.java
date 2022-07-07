@@ -53,8 +53,10 @@ public class NotificationSendTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
+            final UUID                 businessKey           = UUID.fromString(externalTask.getBusinessKey());
             final String               notificationType      = this.getVariableAsString(externalTask, externalTaskService, "notificationType");
             final UUID                 notificationRecipient = this.getVariableAsUUID(externalTaskService, externalTask, "notificationRecipient");
+            final String               idempotentKey         = businessKey.toString() + "::" + notificationType;
             final EnumNotificationType type                  = EnumNotificationType.valueOf(notificationType);
             final Map<String, Object>  variables             = externalTask.getAllVariables();
 
@@ -66,6 +68,7 @@ public class NotificationSendTaskService extends AbstractTaskService {
             final ServerNotificationCommandDto notification = ServerNotificationCommandDto.builder()
                 .data(data)
                 .eventType(notificationType)
+                .idempotentKey(idempotentKey)
                 .recipient(notificationRecipient)
                 .text(this.notificationMessageBuilder.composeNotificationText(type, data))
                 .build();
