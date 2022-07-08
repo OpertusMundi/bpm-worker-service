@@ -108,7 +108,7 @@ public class IngestTaskService extends AbstractTaskService {
                 // 503."
                 this.handleFailure(externalTaskService, externalTask, ex);
             } else {
-                this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.PublishUserService, ex);
+                this.handleBpmnError(externalTaskService, externalTask, this.getErrorCode(type), ex);
             }
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -287,5 +287,16 @@ public class IngestTaskService extends AbstractTaskService {
                 .errorDetails(ex.getRootCause().getMessage())
                 .build();
         }
+    }
+    
+    private String getErrorCode(EnumPublishRequestType type) {
+        switch (type) {
+            case CATALOGUE_ASSET :
+                return ErrorCodes.PublishAsset;
+            case USER_SERVICE :
+                return ErrorCodes.PublishUserService;
+        }
+
+        return ErrorCodes.None;
     }
 }
