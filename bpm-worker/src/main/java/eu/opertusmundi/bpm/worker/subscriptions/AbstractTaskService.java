@@ -220,7 +220,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     }
 
     protected UUID getVariableAsUUID(
-        ExternalTaskService externalTaskService, ExternalTask externalTask, String name
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
         final String value = this.getVariableAsString(externalTask, externalTaskService, name);
 

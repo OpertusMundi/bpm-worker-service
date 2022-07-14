@@ -48,7 +48,7 @@ public class CancelAccountRegistrationTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            final UUID userKey = this.getVariableAsUUID(externalTaskService, externalTask, VARIABLE_USER_KEY);
+            final UUID userKey = this.getVariableAsUUID(externalTask, externalTaskService, VARIABLE_USER_KEY);
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 

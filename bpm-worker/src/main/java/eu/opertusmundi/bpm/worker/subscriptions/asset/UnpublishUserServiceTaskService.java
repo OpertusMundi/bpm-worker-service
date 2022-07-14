@@ -42,7 +42,7 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            final UUID serviceKey = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+            final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 

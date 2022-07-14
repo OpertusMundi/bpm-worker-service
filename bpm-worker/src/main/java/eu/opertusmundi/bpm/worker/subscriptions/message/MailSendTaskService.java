@@ -71,7 +71,7 @@ public class MailSendTaskService extends AbstractTaskService {
 
             // Get parameters
             final String              mailType      = this.getVariableAsString(externalTask, externalTaskService, "mailType");
-            final UUID                mailRecipient = this.getVariableAsUUID(externalTaskService, externalTask, "mailRecipient");
+            final UUID                mailRecipient = this.getVariableAsUUID(externalTask, externalTaskService, "mailRecipient");
             final EnumMailType        type          = EnumMailType.valueOf(mailType);
             final Map<String, Object> variables     = externalTask.getAllVariables();
 

@@ -120,8 +120,8 @@ public class IngestTaskService extends AbstractTaskService {
     private final void ingestCatalogueAsset(
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws InterruptedException {
-        final UUID    draftKey     = this.getVariableAsUUID(externalTaskService, externalTask, "assetKey");
-        final UUID    publisherKey = this.getVariableAsUUID(externalTaskService, externalTask, "publisherKey");
+        final UUID    draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "assetKey");
+        final UUID    publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
         final boolean published    = this.getVariableAsBooleanString(externalTask, externalTaskService, "published");
 
         final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
@@ -162,9 +162,9 @@ public class IngestTaskService extends AbstractTaskService {
     private final void ingestUserService(
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws InterruptedException {
-        final UUID ownerKey   = this.getVariableAsUUID(externalTaskService, externalTask, "ownerKey");
-        final UUID parentKey  = this.getVariableAsUUID(externalTaskService, externalTask, "parentKey");
-        final UUID serviceKey = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+        final UUID ownerKey   = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
+        final UUID parentKey  = this.getVariableAsUUID(externalTask, externalTaskService, "parentKey");
+        final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
 
         final UserServiceDto service = userServiceService.findOne(ownerKey, parentKey, serviceKey);
 

@@ -97,8 +97,8 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
     public void cancelPublishAsset(
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws JsonMappingException, JsonProcessingException {
-        final UUID   draftKey      = this.getVariableAsUUID(externalTaskService, externalTask, "draftKey");
-        final UUID   publisherKey  = this.getVariableAsUUID(externalTaskService, externalTask, "publisherKey");
+        final UUID   draftKey      = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
+        final UUID   publisherKey  = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
         final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
         final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
@@ -123,8 +123,8 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
     public void cancelPublishUserService(
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws JsonMappingException, JsonProcessingException {
-        final UUID   ownerKey      = this.getVariableAsUUID(externalTaskService, externalTask, "ownerKey");
-        final UUID   serviceKey    = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+        final UUID   ownerKey      = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
+        final UUID   serviceKey    = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
         final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
         final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 

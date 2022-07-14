@@ -132,8 +132,8 @@ public class ProfileTaskService extends AbstractTaskService {
     }
 
     private void profileCatalogueAsset(ExternalTask externalTask, ExternalTaskService externalTaskService) throws InterruptedException {
-        final UUID draftKey     = this.getVariableAsUUID(externalTaskService, externalTask, "draftKey");
-        final UUID publisherKey = this.getVariableAsUUID(externalTaskService, externalTask, "publisherKey");
+        final UUID draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
+        final UUID publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
 
         final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
 
@@ -179,8 +179,8 @@ public class ProfileTaskService extends AbstractTaskService {
     }
 
     private void profileUserService(ExternalTask externalTask, ExternalTaskService externalTaskService) throws InterruptedException {
-        final UUID ownerKey   = this.getVariableAsUUID(externalTaskService, externalTask, "ownerKey");
-        final UUID serviceKey = this.getVariableAsUUID(externalTaskService, externalTask, "serviceKey");
+        final UUID ownerKey   = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
+        final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
 
         final UserServiceDto service = userServiceService.findOne(serviceKey);
 
