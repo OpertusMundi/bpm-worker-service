@@ -20,12 +20,20 @@ import org.apache.commons.text.StringSubstitutor;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.camunda.bpm.engine.rest.dto.runtime.VariableInstanceDto;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -33,10 +41,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.domain.ProviderAssetDraftEntity;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.EnumRole;
 import eu.opertusmundi.common.model.PageResultDto;
 import eu.opertusmundi.common.model.ServiceException;
+import eu.opertusmundi.common.model.account.AccountClientDto;
 import eu.opertusmundi.common.model.account.AccountDto;
 import eu.opertusmundi.common.model.asset.service.UserServiceDto;
 import eu.opertusmundi.common.model.catalogue.CatalogueResult;
@@ -47,7 +57,10 @@ import eu.opertusmundi.common.model.keycloak.server.UserDto;
 import eu.opertusmundi.common.model.keycloak.server.UserQueryDto;
 import eu.opertusmundi.common.model.workflow.EnumProcessInstanceVariable;
 import eu.opertusmundi.common.repository.AccountRepository;
+import eu.opertusmundi.common.repository.DraftRepository;
+import eu.opertusmundi.common.service.AccountClientService;
 import eu.opertusmundi.common.service.CatalogueService;
+import eu.opertusmundi.common.service.ElasticSearchService;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.KeycloakAdminService;
 import eu.opertusmundi.common.service.UserServiceService;
@@ -98,6 +111,9 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
     private AccountRepository accountRepository;
 
     @Autowired
+    private DraftRepository draftRepository;
+
+    @Autowired
     private CatalogueService catalogueService;
 
     @Autowired
@@ -108,6 +124,12 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
 
     @Autowired
     private KeycloakAdminService keycloakAdminService;
+
+    @Autowired
+    private AccountClientService accountClientService;
+
+    @Autowired
+    private ElasticSearchService elasticSearchService;
 
     @Autowired
     private BpmEngineUtils bpmEngineUtils;
@@ -182,9 +204,13 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
      *
      * <li>Assets that this user has published
      *
+     * <li>Asset statistics stored in Elasticsearch
+     *
      * <li>All files in the user's file system if either
      * {@link OperationContext#accountDeleted} or
      * {@link OperationContext#fileSystemDeleted} is set to {@code true}
+     *
+     * <li>OAuth clients created by the user
      *
      * <li>All database records that refer to the specified user. If
      * {@link OperationContext#accountDeleted} is {@code true}, the user is also
@@ -211,12 +237,22 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
         // database records that only refer an asset PID
         this.deleteAssets(externalTask, externalTaskService, ctx);
 
+        // Collect all asset PIDs from the draft table. This is required because
+        // the task may have failed after deleteAssets was executed and we
+        // cannot retrieve the published asset PIDs
+        this.collectAssetPids(externalTask, externalTaskService, ctx);
+
+        this.deleteAssetStatistics(externalTask, externalTaskService, ctx);
+
         if (ctx.fileSystemDeleted || ctx.accountDeleted) {
             this.deleteAllFiles(externalTask, externalTaskService, ctx);
         }
 
+        this.deleteOAuthClients(externalTask, externalTaskService, ctx);
+
         if (ctx.accountDeleted) {
             this.deleteIdpUser(externalTask, externalTaskService, ctx);
+            this.deleteUserProfile(externalTask, externalTaskService, ctx);
         }
 
         this.deleteDatabaseRecords(externalTask, externalTaskService, ctx);
@@ -348,6 +384,58 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
         }
     }
 
+    private void collectAssetPids(ExternalTask externalTask, ExternalTaskService externalTaskService, OperationContext ctx) {
+        try {
+            final Direction direction   = Direction.ASC;
+            PageRequest     pageRequest = PageRequest.of(0, 10, Sort.by(direction, "id"));
+
+            Page<ProviderAssetDraftEntity> drafts = this.draftRepository.findAllByPublisher(ctx.userKey, pageRequest);
+
+            while (!drafts.isEmpty()) {
+                for (final ProviderAssetDraftEntity d : drafts.getContent()) {
+                    if (!StringUtils.isBlank(d.getAssetPublished()) && !ctx.pid.contains(d.getAssetPublished())) {
+                        ctx.pid.add(d.getAssetPublished());
+                    }
+                }
+                // Fetch next batch
+                pageRequest = pageRequest.next();
+                drafts      = this.draftRepository.findAllByPublisher(ctx.userKey, pageRequest);
+                // Extend lock duration
+                externalTaskService.extendLock(externalTask, this.getLockDuration());
+            }
+        } catch (Exception ex) {
+            final String message = String.format("Failed to delete IDP user [userKey=%s]", ctx.userKey);
+            throw new ServiceException(BasicMessageCode.InternalServerError, message, ex);
+        } finally {
+            // Extend lock duration
+            externalTaskService.extendLock(externalTask, this.getLockDuration());
+        }
+    }
+
+    private void deleteAssetStatistics(ExternalTask externalTask, ExternalTaskService externalTaskService, OperationContext ctx) {
+        try {
+            if (ctx.pid.isEmpty()) {
+                return;
+            }
+            final SearchSourceBuilder searchBuilder = new SearchSourceBuilder();
+            final BoolQueryBuilder    query         = QueryBuilders.boolQuery();
+            for (final String pid : ctx.pid) {
+                query.should(QueryBuilders.matchQuery("id.keyword", pid));
+            }
+            query.minimumShouldMatch(1);
+            final String entity = searchBuilder.query(query).toString();
+
+            this.elasticSearchService.performRequest(HttpMethod.POST, "/assets_view/_delete_by_query", entity);
+            this.elasticSearchService.performRequest(HttpMethod.POST, "/assets_view_aggregate/_delete_by_query", entity);
+        } catch (Exception ex) {
+            final String message = String.format("Failed to delete IDP user [userKey=%s]", ctx.userKey);
+            throw new ServiceException(BasicMessageCode.InternalServerError, message, ex);
+        } finally {
+            // Extend lock duration
+            externalTaskService.extendLock(externalTask, this.getLockDuration());
+        }
+    }
+
     private void deleteAllFiles(
         ExternalTask externalTask, ExternalTaskService externalTaskService, OperationContext ctx
     ) {
@@ -434,6 +522,32 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
         }
     }
 
+    private void deleteOAuthClients(ExternalTask externalTask, ExternalTaskService externalTaskService, OperationContext ctx) {
+        try {
+            final Direction   direction   = Direction.ASC;
+            PageRequest pageRequest = PageRequest.of(0, 10, Sort.by(direction, "id"));
+
+            PageResultDto<AccountClientDto> clients = this.accountClientService.findAll(ctx.userKey, pageRequest);
+
+            while (!clients.getItems().isEmpty()) {
+                for (final AccountClientDto c : clients.getItems()) {
+                    this.accountClientService.revoke(ctx.userId, c.getClientId());
+                }
+                // Fetch next batch
+                pageRequest = pageRequest.next();
+                clients = this.accountClientService.findAll(ctx.userKey, pageRequest);
+                // Extend lock duration
+                externalTaskService.extendLock(externalTask, this.getLockDuration());
+            }
+        } catch (Exception ex) {
+            final String message = String.format("Failed to delete OAuth client [userKey=%s]", ctx.userKey);
+            throw new ServiceException(BasicMessageCode.InternalServerError, message, ex);
+        } finally {
+            // Extend lock duration
+            externalTaskService.extendLock(externalTask, this.getLockDuration());
+        }
+    }
+
     private void deleteIdpUser(ExternalTask externalTask, ExternalTaskService externalTaskService, OperationContext ctx) {
         try {
             final UserQueryDto queryForUsername = new UserQueryDto();
@@ -450,10 +564,20 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
             if (!usersForUsername.isEmpty()) {
                 this.keycloakAdminService.deleteUser(usersForUsername.get(0).getId());
             }
-
-
         } catch (Exception ex) {
             final String message = String.format("Failed to delete IDP user [userKey=%s]", ctx.userKey);
+            throw new ServiceException(BasicMessageCode.InternalServerError, message, ex);
+        } finally {
+            // Extend lock duration
+            externalTaskService.extendLock(externalTask, this.getLockDuration());
+        }
+    }
+
+    private void deleteUserProfile(ExternalTask externalTask, ExternalTaskService externalTaskService, OperationContext ctx) {
+        try {
+            this.elasticSearchService.removeProfile(ctx.userKey);
+        } catch (Exception ex) {
+            final String message = String.format("Failed to delete user profile from Elasticsearch [userKey=%s]", ctx.userKey);
             throw new ServiceException(BasicMessageCode.InternalServerError, message, ex);
         } finally {
             // Extend lock duration
