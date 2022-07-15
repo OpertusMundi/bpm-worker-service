@@ -58,19 +58,17 @@ public class ImageResizeTaskService extends AbstractTaskService {
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-        
-            final Sort sort = Sort.by(Direction.ASC, "id");
-            int        page = 0;
-            int        size = 10;
-            
-            Page<AccountEntity> accounts = this.accountRepository.findAll(PageRequest.of(page, size, sort));
+            final Sort  sort        = Sort.by(Direction.ASC, "id");
+            PageRequest pageRequest = PageRequest.of(0, 10, sort);
+
+            Page<AccountEntity> accounts = this.accountRepository.findAll(pageRequest);
 
             while (!accounts.isEmpty()) {
                 for (AccountEntity account : accounts) {
                     final AccountProfileEntity       profile  = account.getProfile();
                     final CustomerProfessionalEntity provider = profile.getProvider();
                     final CustomerEntity             consumer = profile.getConsumer();
-                    
+
                     // Resize account image
                     imageUtils.resizeImage(profile.getImage(), profile.getImageMimeType(), imageSize);
                     // Resize provider image
@@ -87,9 +85,9 @@ public class ImageResizeTaskService extends AbstractTaskService {
 
                 // Extend lock duration
                 externalTaskService.extendLock(externalTask, this.getLockDuration());
-                
-                page++;
-                accounts = this.accountRepository.findAll(PageRequest.of(page, size, sort));
+
+                pageRequest = pageRequest.next();
+                accounts    = this.accountRepository.findAll(pageRequest);
             }
 
             // Complete task
