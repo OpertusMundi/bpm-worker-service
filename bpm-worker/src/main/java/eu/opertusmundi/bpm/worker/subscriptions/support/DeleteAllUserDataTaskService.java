@@ -428,7 +428,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
             this.elasticSearchService.performRequest(HttpMethod.POST, "/assets_view/_delete_by_query", entity);
             this.elasticSearchService.performRequest(HttpMethod.POST, "/assets_view_aggregate/_delete_by_query", entity);
         } catch (Exception ex) {
-            final String message = String.format("Failed to delete IDP user [userKey=%s]", ctx.userKey);
+            final String message = String.format("Failed to delete asset statistics [userKey=%s, pid=%s]", ctx.userKey, ctx.pid);
             throw new ServiceException(BasicMessageCode.InternalServerError, message, ex);
         } finally {
             // Extend lock duration
