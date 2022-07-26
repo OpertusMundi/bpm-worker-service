@@ -117,7 +117,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
                         final UUID userKey = UUID.fromString(userKeyAsString);
                         if (!this.userExists(userKey)) {
                             FileUtils.deleteQuietly(providerAssetDir);
-                            logger.warn("Deleted asset symbolic link. Provider was not found [link={}]", providerAssetDir);
+                            logger.info("Deleted asset symbolic link. Provider was not found [link={}]", providerAssetDir);
                         }
                     } catch (IllegalArgumentException ex) {
                         logger.warn("Found invalid draft path. Expected a UUID value for the provider key [path={}]", targetPath);
@@ -125,7 +125,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
                 } else {
                     // Delete invalid link
                     FileUtils.deleteQuietly(providerAssetDir);
-                    logger.warn("Deleted symbolic link. Target was not found [link={}]", providerAssetDir);
+                    logger.info("Deleted symbolic link. Target was not found [link={}]", providerAssetDir);
                 }
             } catch (IOException e) {
                 logger.warn("Failed to resolve symbolic link target [link={}]", providerAssetDir);
@@ -167,7 +167,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
                 final UUID providerKey = UUID.fromString(providerKeyAsString);
                 if (!this.userExists(providerKey)) {
                     FileUtils.deleteQuietly(providerDraftDir);
-                    logger.warn("Deleted draft directory. Provider was not found [link={}]", providerDraftDir);
+                    logger.info("Deleted draft directory. Provider was not found [link={}]", providerDraftDir);
                 }
             } catch (IllegalArgumentException ex) {
                 logger.warn("Found invalid draft path. Expected a UUID value for the provider key [path={}]", providerDraftDir);
@@ -188,7 +188,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
                 final Integer userId = Integer.parseInt(userIdAsString);
                 if (!this.userExists(userId)) {
                     FileUtils.deleteQuietly(userInvoiceDir);
-                    logger.warn("Deleted invoice directory. User was not found [link={}]", userInvoiceDir);
+                    logger.info("Deleted invoice directory. User was not found [link={}]", userInvoiceDir);
                 }
             } catch (NumberFormatException ex) {
                 logger.warn("Found invalid invoice path. Expected a Integer value for the user id [path={}]", userInvoiceDir);
@@ -209,7 +209,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
                 final Integer userId = Integer.parseInt(userIdAsString);
                 if (!this.userExists(userId)) {
                     FileUtils.deleteQuietly(userOrderDir);
-                    logger.warn("Deleted orders directory. User was not found [link={}]", userOrderDir);
+                    logger.info("Deleted orders directory. User was not found [link={}]", userOrderDir);
                 }
             } catch (NumberFormatException ex) {
                 logger.warn("Found invalid orders path. Expected a Integer value for the user id [path={}]", userOrderDir);
@@ -228,7 +228,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
             final String userEmail    = userDataPath.getName(count - 1).toString();
             if (!this.userExists(userEmail)) {
                 FileUtils.deleteQuietly(userDataDir);
-                logger.warn("Deleted user data directory. User was not found [link={}]", userDataDir);
+                logger.info("Deleted user data directory. User was not found [link={}]", userDataDir);
             }
         }
     }
@@ -246,7 +246,7 @@ public class DeleteOrphanFileSystemEntriesTaskService extends AbstractTaskServic
                 final UUID userKey = UUID.fromString(userKeyAsString);
                 if (!this.userExists(userKey)) {
                     FileUtils.deleteQuietly(userServiceDir);
-                    logger.warn("Deleted user services directory. User was not found [link={}]", userServiceDir);
+                    logger.info("Deleted user services directory. User was not found [link={}]", userServiceDir);
                 }
             } catch (IllegalArgumentException ex) {
                 logger.warn("Found invalid user services path. Expected a UUID value for the user key [path={}]", userServiceDir);

@@ -138,7 +138,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
                 FileUtils.deleteQuietly(draftPath.toFile());
             }
         } catch (IOException ex) {
-            logger.info(String.format("Failed to delete asset resources [pid=%s]", task.pid), ex);
+            logger.warn(String.format("Failed to delete asset resources [pid=%s]", task.pid), ex);
         }
         
         this.catalogueService.unpublish(task.publisherKey, task.pid);
