@@ -55,6 +55,9 @@ BEGIN
 
   -- Delete all messages and notifications
   DELETE from messaging.message where sender = p_account_key or recipient = p_account_key;
+  DELETE from messaging.message_thread where id in (
+    select distinct m.thread from messaging.message m where m.sender = p_account_key or m.recipient = p_account_key
+  );
   DELETE from messaging.notification where recipient = p_account_key;
 
   -- Delete orders
