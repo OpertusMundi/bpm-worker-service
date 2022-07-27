@@ -53,7 +53,7 @@ public class NotificationSendTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
-            final UUID                 businessKey           = UUID.fromString(externalTask.getBusinessKey());
+            final String               businessKey           = externalTask.getBusinessKey();
             final String               notificationType      = this.getVariableAsString(externalTask, externalTaskService, "notificationType");
             final UUID                 notificationRecipient = this.getVariableAsUUID(externalTask, externalTaskService, "notificationRecipient");
             final String               idempotentKey         = businessKey.toString() + "::" + notificationType;
