@@ -166,18 +166,21 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     @Transactional
     public AccountDto completeAccountRegistration(UUID userKey, boolean registerConsumer) throws BpmnWorkerException {
         // Verify that the account exists and has the appropriate status
-        AccountDto account = this.verifyAccount(userKey);
+        AccountDto    account  = this.verifyAccount(userKey);
+        final boolean external = account.getIdpName() != null && account.getIdpName().isExternal();
 
+        return external ? this.registerExternalAccount(account) : this.registerLocalAccount(account, registerConsumer);
+    }
+
+    private AccountDto registerLocalAccount(AccountDto account, boolean registerConsumer) {
         // Prepare home directory for the new account
         this.setupHomeDirectory(account);
 
         // Create OTP
         final String password = PASSWORD_GENERATOR.generatePassword(otpLength, PASSWORD_POLICY);
-
         // Register account to IDP (Keycloak)
         this.registerAccountToIdp(account, password);
-
-        // Set local passwords
+        // Set local password
         this.accountRepository.setPassword(account.getId(), password);
 
         // Configure consumer registration
@@ -186,10 +189,20 @@ public class ActivateAccountTaskService extends AbstractTaskService {
         }
 
         // Complete account registration
-        account = this.activateAccount(userKey);
+        account = this.activateAccount(account.getKey());
 
         // Send OTP to user
         this.sendMail(account, password);
+
+        return account;
+    }
+
+    private AccountDto registerExternalAccount(AccountDto account) {
+        // Prepare home directory for the new account
+        this.setupHomeDirectory(account);
+
+        // Complete account registration
+        account = this.activateAccount(account.getKey());
 
         return account;
     }
