@@ -60,8 +60,11 @@ BEGIN
   );
   DELETE from messaging.notification where recipient = p_account_key;
 
-  -- Delete orders
-  DELETE from "order".order c where c.consumer = p_account_id;
+  -- Delete orders (provider)
+  DELETE from "order".order o where o.id in (select distinct i."order" from "order".order_item i where i.provider = p_account_id);
+  -- Delete orders (consumer)
+  DELETE from "order".order o where o.consumer = p_account_id;
+  -- Delete cart history
   DELETE from "order".cart c where c.account = p_account_id;
 
   -- Delete provider records
