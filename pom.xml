@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
-<project
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-    xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project 
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" 
+	xmlns="http://maven.apache.org/POM/4.0.0" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+>
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.opertusmundi</groupId>
 	<artifactId>opertus-mundi-bpm-worker-parent</artifactId>
 	<version>1.0.0</version>
 	<name>[opertus-mundi] BPM Worker Parent</name>
-
 	<packaging>pom</packaging>
 
 	<url>https://www.opertusmundi.eu/</url>
@@ -91,7 +91,6 @@
 		</dependencies>
 	</dependencyManagement>
 
-
 	<build>
 		<pluginManagement>
 			<plugins>
@@ -152,7 +151,6 @@
 		</pluginManagement>
 	</build>
 
-
 	<reporting>
 		<plugins>
 			<plugin>
@@ -161,8 +159,7 @@
 				<version>${maven-project-info-reports-plugin.version}</version>
 				<reportSets>
 					<reportSet>
-						<reports>
-						</reports>
+						<reports></reports>
 					</reportSet>
 				</reportSets>
 			</plugin>
@@ -181,5 +178,4 @@
 			</plugin>
 		</plugins>
 	</reporting>
-
 </project>
