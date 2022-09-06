@@ -1,8 +1,8 @@
 # vim: set syntax=dockerfile:
 
-#FROM maven:3.6.3-openjdk-8 as build-stage-1
+#FROM maven:3.8.6-eclipse-temurin-17-alpine as build-stage-1
 # see https://github.com/OpertusMundi/java-commons/blob/master/Dockerfile
-FROM opertusmundi/java-commons-builder:1.0 as build-stage-1
+FROM opertusmundi/java-commons-builder:1.1 as build-stage-1
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY bpm-worker/resources /app/bpm-worker/resources
 RUN mvn -B compile -DenableDockerBuildProfile
 
 
-FROM openjdk:8-jre-alpine
+FROM eclipse-temurin:17-jre-alpine 
 
 ARG git_commit=
 

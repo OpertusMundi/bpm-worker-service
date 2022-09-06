@@ -50,8 +50,8 @@ steps:
   - git submodule update --recursive
 
 - name: resolve-deps
-  #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0
+  #image: maven:3.8.6-eclipse-temurin-17-alpine
+  image: opertusmundi/java-commons-builder:1.1
   when:
     event:
     - push
@@ -92,8 +92,8 @@ steps:
     ) | tee $${config_file}
 
 - name: tests
-  #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0
+  #image: maven:3.8.6-eclipse-temurin-17-alpine
+  image: opertusmundi/java-commons-builder:1.1
   when:
     event:
     - push
@@ -105,8 +105,8 @@ steps:
   - mvn test -B -DenableCiProfile
 
 - name: integration-tests
-  #image: maven:3.6.3-openjdk-8
-  image: opertusmundi/java-commons-builder:1.0
+  #image: maven:3.8.6-eclipse-temurin-17-alpine
+  image: opertusmundi/java-commons-builder:1.1
   when:
     event:
     - push
