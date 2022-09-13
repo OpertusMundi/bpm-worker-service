@@ -4,6 +4,7 @@ DECLARE
   p_account_key             UUID                    := '${accountKey}';
   p_pid                     character varying ARRAY := ARRAY[${pid}]::character varying[];
   p_delete_account          boolean                 := ${accountDeleted};
+  p_delete_contracts        boolean                 := ${contractsDeleted};
   p_customer_consumer       integer;
   p_customer_provider       integer;
   p_customer_consumer_draft integer;
@@ -26,20 +27,22 @@ BEGIN
   DELETE from "billing".payout p where p.provider = p_account_id;
 
   -- Delete contract records
-  DELETE from "contract".provider_section_draft s where s.contract in (
-    select id from "contract".provider_contract_draft c where c.owner  = p_account_id
-  );
-  DELETE from "contract".provider_contract_draft c where c.owner  = p_account_id;
+  IF p_delete_account OR p_delete_contracts THEN
+    DELETE from "contract".provider_section_draft s where s.contract in (
+      select id from "contract".provider_contract_draft c where c.owner  = p_account_id
+    );
+    DELETE from "contract".provider_contract_draft c where c.owner  = p_account_id;
 
-  DELETE from "contract".provider_section s where s.contract in (
-    select id from "contract".provider_contract c where c.owner  = p_account_id
-  );
-  DELETE from "contract".provider_contract c where c.owner  = p_account_id;
+    DELETE from "contract".provider_section s where s.contract in (
+      select id from "contract".provider_contract c where c.owner  = p_account_id
+    );
+    DELETE from "contract".provider_contract c where c.owner  = p_account_id;
 
-  DELETE from "contract".provider_section_history s where s.contract in (
-    select id from "contract".provider_contract_history c where c.owner  = p_account_id
-  );
-  DELETE from "contract".provider_contract_history c where c.owner  = p_account_id;
+    DELETE from "contract".provider_section_history s where s.contract in (
+      select id from "contract".provider_contract_history c where c.owner  = p_account_id
+    );
+    DELETE from "contract".provider_contract_history c where c.owner  = p_account_id;
+  END IF;
 
   -- Delete files
   DELETE from "file".asset_additional_resource f where
