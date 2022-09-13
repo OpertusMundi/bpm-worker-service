@@ -18,6 +18,7 @@ import eu.opertusmundi.bpm.worker.model.EnumPublishRequestType;
 import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
+import eu.opertusmundi.common.model.account.AccountDto;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
@@ -31,6 +32,7 @@ import eu.opertusmundi.common.model.ingest.ServerIngestResultResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestTicketResponseDto;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
+import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
@@ -49,6 +51,9 @@ public class IngestTaskService extends AbstractTaskService {
     protected long getLockDuration() {
         return this.lockDurationMillis;
     }
+
+    @Autowired
+    private AccountRepository accountRepository;
 
     @Autowired
     private DraftFileManager draftFileManager;
@@ -124,7 +129,8 @@ public class IngestTaskService extends AbstractTaskService {
         final UUID    publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
         final boolean published    = this.getVariableAsBooleanString(externalTask, externalTaskService, "published");
 
-        final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+        final AssetDraftDto draft     = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+        final AccountDto    publisher = this.accountRepository.findOneByKeyObject(publisherKey).orElse(null);
 
         final List<ResourceDto> resources = draft.getCommand().getResources();
 
@@ -136,16 +142,20 @@ public class IngestTaskService extends AbstractTaskService {
             final FileResourceDto fileResource = (FileResourceDto) resource;
             final String          tableName    = fileResource.getId();
             final String          fileName     = fileResource.getFileName();
+            final String          shard        = publisher.getProfile().getGeodataShard();
+            final String          workspace    = shard == null ? null : publisher.getKey().toString();
             final String          path         = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
-            
-            final ServerIngestResultResponseDto ingestResult = this.ingest(externalTask, externalTaskService, tableName, path);
+
+            final ServerIngestResultResponseDto ingestResult = this.ingest(
+                externalTask, externalTaskService, path, shard, workspace, tableName
+            );
 
             // Update metadata for the specific file
             providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), ingestResult);
 
             if(published) {
                 final ServerIngestPublishResponseDto publishResult = this.publish(
-                    externalTask, externalTaskService, ingestResult.getTable()
+                    externalTask, externalTaskService, shard, workspace, ingestResult.getTable()
                 );
 
                 providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), publishResult);
@@ -166,19 +176,24 @@ public class IngestTaskService extends AbstractTaskService {
         final UUID parentKey  = this.getVariableAsUUID(externalTask, externalTaskService, "parentKey");
         final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
 
-        final UserServiceDto service = userServiceService.findOne(ownerKey, parentKey, serviceKey);
+        final UserServiceDto service   = userServiceService.findOne(ownerKey, parentKey, serviceKey);
+        final AccountDto     publisher = this.accountRepository.findOneByKeyObject(ownerKey).orElse(null);
 
+        final String shard     = publisher.getProfile().getGeodataShard();
+        final String workspace = shard == null ? null : publisher.getKey().toString();
         final String tableName = service.getKey().toString();
         final String fileName  = service.getFileName();
         final String path      = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);
 
         // Ingest
-        final ServerIngestResultResponseDto ingestResult = this.ingest(externalTask, externalTaskService, tableName, path);
+        final ServerIngestResultResponseDto ingestResult = this.ingest(
+            externalTask, externalTaskService, path, shard, workspace, tableName
+        );
         userServiceService.updateResourceIngestionData(ownerKey, serviceKey, ingestResult);
 
         // Publish to GeoServer
         final ServerIngestPublishResponseDto publishResult = this.publish(
-            externalTask, externalTaskService, ingestResult.getTable()
+            externalTask, externalTaskService, shard, workspace, ingestResult.getTable()
         );
         userServiceService.updateResourceIngestionData(ownerKey, serviceKey, publishResult);
 
@@ -190,7 +205,7 @@ public class IngestTaskService extends AbstractTaskService {
     }
     
     private ServerIngestResultResponseDto ingest(
-        ExternalTask externalTask, ExternalTaskService externalTaskService, String tableName, String path
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String path, String shard, String workspace, String tableName
     ) throws InterruptedException {
         final String                  idempotentKey = tableName;
         String                        ticket;
@@ -200,7 +215,9 @@ public class IngestTaskService extends AbstractTaskService {
         final ServerIngestTicketResponseDto ticketResponse = this.ingestService.getTicket(idempotentKey);
 
         if (ticketResponse == null) {
-            final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(idempotentKey, path.toString(), tableName);
+            final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(
+                idempotentKey, path.toString(), shard, workspace, tableName
+            );
             ticket = ingestResponse.getTicket();
         } else {
             ticket = ticketResponse.getTicket();
@@ -250,11 +267,11 @@ public class IngestTaskService extends AbstractTaskService {
     }
 
     private ServerIngestPublishResponseDto publish(
-        ExternalTask externalTask, ExternalTaskService externalTaskService, String tableName
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String shard, String workspace, String tableName
     ) throws InterruptedException {
         final String idempotentKey = UUID.randomUUID().toString();
 
-        return this.ingestService.publish(idempotentKey, tableName);
+        return this.ingestService.publish(idempotentKey, shard, workspace, tableName);
     }
 
     private String getResource(

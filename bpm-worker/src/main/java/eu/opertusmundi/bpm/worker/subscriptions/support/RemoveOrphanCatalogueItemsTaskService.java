@@ -21,6 +21,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.config.GeodataConfiguration;
 import eu.opertusmundi.common.domain.AccountEntity;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.ServiceException;
@@ -45,6 +46,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.remove-orphan-catalogue-items.batch-size:20}")
     private int batchSize;
 
+    private final GeodataConfiguration geodataConfiguration;
     private final AccountRepository    accountRepository;
     private final CatalogueService     catalogueService;
     private final ElasticSearchService elasticSearchService;
@@ -53,12 +55,14 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
 
     @Autowired
     public RemoveOrphanCatalogueItemsTaskService(
+        GeodataConfiguration geodataConfiguration,
         AccountRepository accountRepository, 
         CatalogueService catalogueService,
         ElasticSearchService elasticSearchService, 
         IngestService ingestService, 
         Path assetDirectory
     ) {
+        this.geodataConfiguration = geodataConfiguration;
         this.accountRepository    = accountRepository;
         this.catalogueService     = catalogueService;
         this.elasticSearchService = elasticSearchService;
@@ -95,7 +99,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
                     if (publisher == null) {
                         logger.info("Removing asset due to missing publisher [pid={}, publisher={}]", pid, publisherKey);
                         
-                        tasks.add(FeatureDeleteTask.of(feature, pid, publisherKey));
+                        tasks.add(FeatureDeleteTask.of(feature, pid, publisherKey, null));
                     }
                 }
                 // Fetch next batch
@@ -125,7 +129,10 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
     
     private void deleteAsset(ExternalTask externalTask, ExternalTaskService externalTaskService, FeatureDeleteTask task) {
         StreamUtils.from(task.feature.getProperties().getIngestionInfo()).forEach(d -> {
-            this.ingestService.removeLayerAndData(d.getTableName(), null, null);
+            // TODO: Since the geodata shard is unknown, we skip orphan layers;
+            // We should scan all registered shards and attempt to remove the
+            // specified layer.
+            this.ingestService.removeLayerAndData(task.geodataShard, task.publisherKey.toString(), d.getTableName());
         });
 
         try {
@@ -167,6 +174,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
         private CatalogueFeature feature;
         private String           pid;
         private UUID             publisherKey;
+        private String           geodataShard;
 
     }
     

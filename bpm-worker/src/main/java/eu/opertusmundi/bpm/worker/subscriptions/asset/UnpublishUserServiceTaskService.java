@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.model.account.AccountDto;
+import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.IngestService;
 
 @Service
@@ -23,8 +25,11 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
     private Long lockDurationMillis;
 
     @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
     private IngestService ingestService;
-    
+
     @Override
     public String getTopicName() {
         return "unpublishUserService";
@@ -42,12 +47,16 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
+            final UUID       ownerKey   = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
+            final UUID       serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
+            final AccountDto publisher  = this.accountRepository.findOneByKeyObject(ownerKey).orElse(null);
+            final String     shard      = publisher.getProfile().getGeodataShard();
+            final String     workspace  = ownerKey.toString();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Remove data/layer from PostgreSQL/GeoServer
-            this.ingestService.removeLayerAndData(serviceKey.toString(), null, null);
+            this.ingestService.removeLayerAndData(shard, workspace, serviceKey.toString());
             
             // Complete task
             externalTaskService.complete(externalTask);

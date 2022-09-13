@@ -33,6 +33,7 @@ import org.springframework.util.Assert;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.config.GeodataConfiguration;
 import eu.opertusmundi.common.domain.AccountEntity;
 import eu.opertusmundi.common.feign.client.EmailServiceFeignClient;
 import eu.opertusmundi.common.model.BaseResponse;
@@ -85,6 +86,9 @@ public class ActivateAccountTaskService extends AbstractTaskService {
 
     @Value("${opertusmundi.bpm.worker.tasks.activate-account.otp-length:12}")
     private int otpLength;
+
+    @Autowired
+    private GeodataConfiguration geodataConfiguration;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -408,6 +412,23 @@ public class ActivateAccountTaskService extends AbstractTaskService {
     }
 
     /**
+     * Select a geodata shard for the specified user key
+     * 
+     * @param userKey
+     * @return
+     */
+    private String selectGeodataShard(UUID userKey) {
+        // TODO: Select shard e.g.
+        /*
+        final List<String> shards     = Optional.ofNullable(this.geodataConfiguration.getShards()).orElse(Collections.emptyList());
+        final int          shardCount = shards.size();
+        final String       shard      = shardCount == 0 ? null : shards.get(ThreadLocalRandom.current().nextInt(shardCount));
+        */
+
+        return null;
+    }
+    
+    /**
      * Activate account
      *
      * @param userKey
@@ -415,11 +436,12 @@ public class ActivateAccountTaskService extends AbstractTaskService {
      * @throws BpmnWorkerException
      */
     private AccountDto activateAccount(UUID userKey) throws BpmnWorkerException {
-        AccountEntity account = this.accountRepository.findOneByKey(userKey).orElse(null);
+        final String geodataShard = this.selectGeodataShard(userKey);
 
+        AccountEntity account = this.accountRepository.findOneByKey(userKey).orElse(null);
         account.setActivationStatus(EnumActivationStatus.COMPLETED);
         account.setActive(true);
-
+        account.getProfile().setGeodataShard(geodataShard);
         account = this.accountRepository.saveAndFlush(account);
 
         return account.toDto(true);

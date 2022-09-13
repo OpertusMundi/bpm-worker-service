@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.config.GeodataConfiguration;
 import eu.opertusmundi.common.domain.ProviderAssetDraftEntity;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.EnumRole;
@@ -85,6 +86,9 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
     private DataSource dataSource;
 
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private GeodataConfiguration geodataConfiguration;
 
     @Autowired
     private Path assetDirectory;
@@ -158,6 +162,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
             final UUID    userParentKey     = this.getVariableAsUUID(externalTask, externalTaskService, "userParentKey");
             final String  userName          = this.getVariableAsString(externalTask, externalTaskService, "userName");
             final boolean fileSystemDeleted = this.getVariableAsBoolean(externalTask, externalTaskService, "fileSystemDeleted");
+            final boolean contractsDeleted  = this.getVariableAsBoolean(externalTask, externalTaskService, "contractsDeleted");
             final boolean accountDeleted    = this.getVariableAsBoolean(externalTask, externalTaskService, "accountDeleted");
 
             logger.info("Received task. [taskId={}]", taskId);
@@ -168,13 +173,17 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
                 logger.warn("Account does not have role ROLE_TESTER [userKey={}]", userKey);
                 return;
             }
+            final String userGeodataShard = account.getProfile().getGeodataShard();
+            
             // Build context
             final OperationContext ctx = OperationContext.builder()
                 .userId(userId)
                 .userKey(userKey)
                 .userParentKey(userParentKey)
                 .userName(userName)
+                .userGeodataShard(userGeodataShard)
                 .accountDeleted(accountDeleted)
+                .contractsDeleted(contractsDeleted)
                 .fileSystemDeleted(fileSystemDeleted)
                 .build();
 
@@ -325,7 +334,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
 
             while (!services.getItems().isEmpty()) {
                 for (final UserServiceDto service : services.getItems()) {
-                    this.ingestService.removeLayerAndData(service.getKey().toString(), null, null);
+                    this.ingestService.removeLayerAndData(ctx.userGeodataShard, ctx.userKey.toString(), service.getKey().toString());
                 }
                 index++;
                 services = this.userServiceService.findAll(ctx.userKey, ctx.userParentKey, null, null, index, 10);
@@ -359,7 +368,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
 
                     // Delete ingested data
                     StreamUtils.from(itemDetails.getIngestionInfo()).forEach(d -> {
-                        this.ingestService.removeLayerAndData(d.getTableName(), null, null);
+                        this.ingestService.removeLayerAndData(ctx.userGeodataShard, ctx.userParentKey.toString(), d.getTableName());
                     });
                 }
 
@@ -504,6 +513,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
             parameters.put("accountKey", ctx.userKey.toString());
             parameters.put("pid", StringUtils.join(ctx.pid.stream().map(s -> "'" + s + "'").toArray(), ","));
             parameters.put("accountDeleted", Boolean.valueOf(ctx.accountDeleted).toString());
+            parameters.put("contractsDeleted", Boolean.valueOf(ctx.contractsDeleted).toString());
 
             StringSubstitutor stringSubstitutor = new StringSubstitutor(parameters);
 
@@ -593,11 +603,15 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
         private UUID userKey;
 
         private UUID userParentKey;
+        
+        private String userGeodataShard;
 
         private String userName;
 
         private boolean accountDeleted;
 
+        private boolean contractsDeleted;
+        
         private boolean fileSystemDeleted;
 
         @Builder.Default
