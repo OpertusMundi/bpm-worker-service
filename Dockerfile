@@ -25,6 +25,7 @@ ARG git_commit=
 
 COPY --from=build-stage-1 /app/bpm-worker/target/ /app/
 
+RUN apk update && apk add --no-cache bash
 RUN addgroup spring && adduser -H -D -G spring spring
 
 COPY docker-entrypoint.sh /usr/local/bin
@@ -65,7 +66,9 @@ ENV MARKETPLACE_URL="" \
     KEYCLOAK_REFRESH_TOKEN_FILE="" \
     CONTRACT_SIGNPDF_KEYSTORE="/secrets/signatory-keystore" \
     CONTRACT_SIGNPDF_KEYSTORE_PASSWORD_FILE="/secrets/signatory-keystore-password" \
-    CONTRACT_SIGNPDF_KEY_ALIAS="opertusmundi.eu"
+    CONTRACT_SIGNPDF_KEY_ALIAS="opertusmundi.eu" \
+    GEODATA_SHARDS="1"
+
 
 ENV GIT_COMMIT=${git_commit}
 
