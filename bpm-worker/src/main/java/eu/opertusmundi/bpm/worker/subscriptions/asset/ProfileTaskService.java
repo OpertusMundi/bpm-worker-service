@@ -132,30 +132,33 @@ public class ProfileTaskService extends AbstractTaskService {
     }
 
     private void profileCatalogueAsset(ExternalTask externalTask, ExternalTaskService externalTaskService) throws InterruptedException {
-        final UUID draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
-        final UUID publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
+        final UUID    draftKey             = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
+        final UUID    publisherKey         = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
+        final boolean dataProfilingEnabled = this.getVariableAsBoolean(externalTask, externalTaskService, "dataProfilingEnabled", true);
 
         final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
 
-        final List<ResourceDto> resources = draft.getCommand().getResources();
+        if (dataProfilingEnabled) {
+            final List<ResourceDto> resources = draft.getCommand().getResources();
 
-        // Process all resources
-        for (ResourceDto resource : resources) {
-            if (resource.getType() != EnumResourceType.FILE) {
-                continue;
+            // Process all resources
+            for (ResourceDto resource : resources) {
+                if (resource.getType() != EnumResourceType.FILE) {
+                    continue;
+                }
+                final FileResourceDto fileResource  = (FileResourceDto) resource;
+                final String          idempotentKey = fileResource.getId();
+                final EnumAssetType   assetType     = fileResource.getCategory();
+                final String          fileName      = fileResource.getFileName();
+                final String          crs           = fileResource.getCrs();
+                final String          encoding      = fileResource.getEncoding();
+                final String          path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
+
+                final JsonNode metadata = this.profile(externalTask, externalTaskService, idempotentKey, path, assetType, crs, encoding);
+
+                // Update metadata for the specific file
+                providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
             }
-            final FileResourceDto fileResource  = (FileResourceDto) resource;
-            final String          idempotentKey = fileResource.getId();
-            final EnumAssetType   assetType     = fileResource.getCategory();
-            final String          fileName      = fileResource.getFileName();
-            final String          crs           = fileResource.getCrs();
-            final String          encoding      = fileResource.getEncoding();
-            final String          path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
-
-            final JsonNode metadata = this.profile(externalTask, externalTaskService, idempotentKey, path, assetType, crs, encoding);
-
-            // Update metadata for the specific file
-            providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
         }
 
         // Update draft status if this is not a SERVICE asset
