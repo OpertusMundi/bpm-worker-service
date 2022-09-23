@@ -15,6 +15,7 @@ import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ProviderRegistrationService;
+import eu.opertusmundi.common.service.contract.ProviderTemplateContractService;
 import eu.opertusmundi.common.service.mangopay.PaymentService;
 
 @Service
@@ -25,11 +26,22 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.provider-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
-    @Autowired
-    private ProviderRegistrationService registrationService;
+    final private PaymentService                  paymentService;
+    final private ProviderTemplateContractService providerTemplateContractService;
+    final private ProviderRegistrationService     registrationService;
 
     @Autowired
-    private PaymentService paymentService;
+    public CreateProviderTaskService(
+        PaymentService paymentService,
+        ProviderTemplateContractService providerTemplateContractService,
+        ProviderRegistrationService registrationService
+    ) {
+        super();
+
+        this.paymentService                  = paymentService;
+        this.providerTemplateContractService = providerTemplateContractService;
+        this.registrationService             = registrationService;
+    }
 
     @Override
     public String getTopicName() {
@@ -56,10 +68,10 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             this.paymentService.createUser(command);
-
             this.paymentService.createWallet(command);
-
             this.paymentService.createBankAccount(command);
+
+            this.providerTemplateContractService.createDefaultContract(userKey);
 
             this.registrationService.completeRegistration(userKey);
 

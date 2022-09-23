@@ -25,11 +25,16 @@ public class UpdateProviderTaskService extends AbstractCustomerTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.provider-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
-    @Autowired
-    private ProviderRegistrationService registrationService;
+    final private PaymentService              paymentService;
+    final private ProviderRegistrationService registrationService;
 
     @Autowired
-    private PaymentService paymentService;
+    public UpdateProviderTaskService(PaymentService paymentService, ProviderRegistrationService registrationService) {
+        super();
+
+        this.paymentService      = paymentService;
+        this.registrationService = registrationService;
+    }
 
     @Override
     public String getTopicName() {
@@ -55,7 +60,6 @@ public class UpdateProviderTaskService extends AbstractCustomerTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             this.paymentService.updateUser(command);
-
             this.paymentService.updateBankAccount(command);
 
             this.registrationService.completeRegistration(userKey);
