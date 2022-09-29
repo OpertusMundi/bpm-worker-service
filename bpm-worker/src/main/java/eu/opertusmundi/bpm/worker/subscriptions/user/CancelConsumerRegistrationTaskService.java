@@ -49,13 +49,9 @@ public class CancelConsumerRegistrationTaskService extends AbstractCustomerTaskS
             final String taskId = externalTask.getId();
 
             logger.info("Received task. [taskId={}]", taskId);
-
-            final UUID   userKey       = this.getUserKey(externalTask, externalTaskService);
-            final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
-
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.cancelRegistration(userKey, errorMessages);
+            this.cancelRegistration(externalTask, externalTaskService);
 
             externalTaskService.complete(externalTask);
 
@@ -74,18 +70,25 @@ public class CancelConsumerRegistrationTaskService extends AbstractCustomerTaskS
     }
 
     @Transactional
-    private void cancelRegistration(UUID userKey, String errorMessages) throws BpmnWorkerException, JsonMappingException, JsonProcessingException {
-        final AccountEntity account = this.accountRepository.findOneByKey(userKey).orElse(null);
+    public void cancelRegistration(
+        ExternalTask externalTask, ExternalTaskService externalTaskService
+    ) throws JsonMappingException, JsonProcessingException {
+        final UUID   userKey       = this.getUserKey(externalTask, externalTaskService);
+        final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
+        final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
+        final AccountEntity account  = this.accountRepository.findOneByKey(userKey).orElse(null);
+        final List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
+        
         if (account == null) {
             final String message = String.format("Account not found [userKey=%s]", userKey);
 
             throw this.buildException(AccountMessageCode.ACCOUNT_NOT_FOUND, message, message);
         }
 
-        List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
         
-        this.accountRepository.failConsumerRegistration(userKey, messages);
+        
+        this.accountRepository.failConsumerRegistration(userKey, errorDetails, messages);
     }
 
 }

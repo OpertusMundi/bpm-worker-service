@@ -169,8 +169,18 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     protected String getVariableAsString(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
+        return this.getVariableAsString(externalTask, externalTaskService, name, null);
+    }
+
+    protected String getVariableAsString(
+        ExternalTask externalTask, ExternalTaskService externalTaskService, String name, String defaultValue
+    ) throws BpmnWorkerException {
         final String value = (String) externalTask.getVariable(name);
         if (StringUtils.isBlank(value)) {
+            if (defaultValue != null) {
+                return defaultValue;
+            }
+
             logger.error("Expected non empty variable value. [name={}]", name);
 
             throw this.buildVariableNotFoundException(name);
@@ -191,13 +201,13 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
         return value;
     }
-    
+
     protected boolean getVariableAsBoolean(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
         return this.getVariableAsBoolean(externalTask, externalTaskService, name, null);
     }
-    
+
     protected boolean getVariableAsBoolean(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name, Boolean defaultValue
     ) throws BpmnWorkerException {
@@ -213,7 +223,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
         return value;
     }
-    
+
     protected boolean getVariableAsBooleanString(
         ExternalTask externalTask, ExternalTaskService externalTaskService, String name
     ) throws BpmnWorkerException {
