@@ -3,6 +3,7 @@ package eu.opertusmundi.bpm.worker.subscriptions.message;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 import org.slf4j.Logger;
@@ -56,7 +57,10 @@ public class NotificationSendTaskService extends AbstractTaskService {
             final String               businessKey           = externalTask.getBusinessKey();
             final String               notificationType      = this.getVariableAsString(externalTask, externalTaskService, "notificationType");
             final UUID                 notificationRecipient = this.getVariableAsUUID(externalTask, externalTaskService, "notificationRecipient");
-            final String               idempotentKey         = businessKey.toString() + "::" + notificationType;
+            final String               idempotentKeyParam    = this.getVariableAsString(externalTask, externalTaskService, "idempotentKeyParam", "");
+            final String               idempotentKey         = StringUtils.isAllBlank(idempotentKeyParam)
+                ? businessKey.toString() + "::" + notificationType
+                : this.getVariableAsString(externalTask, externalTaskService, idempotentKeyParam);
             final EnumNotificationType type                  = EnumNotificationType.valueOf(notificationType);
             final Map<String, Object>  variables             = externalTask.getAllVariables();
 
