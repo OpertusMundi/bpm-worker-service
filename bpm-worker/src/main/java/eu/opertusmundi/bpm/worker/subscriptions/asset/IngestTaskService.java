@@ -18,7 +18,6 @@ import eu.opertusmundi.bpm.worker.model.EnumPublishRequestType;
 import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
-import eu.opertusmundi.common.model.account.AccountDto;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
@@ -32,12 +31,12 @@ import eu.opertusmundi.common.model.ingest.ServerIngestResultResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestStatusResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestTicketResponseDto;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
-import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.UserServiceFileManager;
 import eu.opertusmundi.common.service.UserServiceService;
+import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 
 @Service
 public class IngestTaskService extends AbstractTaskService {
@@ -53,20 +52,20 @@ public class IngestTaskService extends AbstractTaskService {
     }
 
     @Autowired
-    private AccountRepository accountRepository;
+    private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
 
     @Autowired
     private DraftFileManager draftFileManager;
 
     @Autowired
     private UserServiceFileManager userServiceFileManager;
-    
+
     @Autowired
     private ProviderAssetService providerAssetService;
 
     @Autowired
     private UserServiceService userServiceService;
-    
+
     @Autowired
     private IngestService ingestService;
 
@@ -95,7 +94,7 @@ public class IngestTaskService extends AbstractTaskService {
                     this.ingestUserService(externalTask, externalTaskService);
                     break;
             }
-            
+
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -121,7 +120,7 @@ public class IngestTaskService extends AbstractTaskService {
             this.handleFailure(externalTaskService, externalTask, ex);
         }
     }
-    
+
     private final void ingestCatalogueAsset(
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws InterruptedException {
@@ -129,8 +128,8 @@ public class IngestTaskService extends AbstractTaskService {
         final UUID    publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
         final boolean published    = this.getVariableAsBooleanString(externalTask, externalTaskService, "published");
 
-        final AssetDraftDto draft     = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-        final AccountDto    publisher = this.accountRepository.findOneByKeyObject(publisherKey).orElse(null);
+        final AssetDraftDto draft             = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+        var                 userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
 
         final List<ResourceDto> resources = draft.getCommand().getResources();
 
@@ -142,12 +141,14 @@ public class IngestTaskService extends AbstractTaskService {
             final FileResourceDto fileResource = (FileResourceDto) resource;
             final String          tableName    = fileResource.getId();
             final String          fileName     = fileResource.getFileName();
-            final String          shard        = publisher.getProfile().getGeodataShard();
-            final String          workspace    = shard == null ? null : publisher.getKey().toString();
+            final String          encoding     = fileResource.getEncoding();
+            final String          crs          = fileResource.getCrs();
+            final String          shard        = userGeodataConfig.getShard();
+            final String          workspace    = userGeodataConfig.getWorkspace();
             final String          path         = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
 
             final ServerIngestResultResponseDto ingestResult = this.ingest(
-                externalTask, externalTaskService, path, shard, workspace, tableName
+                externalTask, externalTaskService, path, shard, workspace, tableName, encoding, crs
             );
 
             // Update metadata for the specific file
@@ -176,18 +177,21 @@ public class IngestTaskService extends AbstractTaskService {
         final UUID parentKey  = this.getVariableAsUUID(externalTask, externalTaskService, "parentKey");
         final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
 
-        final UserServiceDto service   = userServiceService.findOne(ownerKey, parentKey, serviceKey);
-        final AccountDto     publisher = this.accountRepository.findOneByKeyObject(ownerKey).orElse(null);
+        final UserServiceDto service  = userServiceService.findOne(ownerKey, parentKey, serviceKey);
+        final String         encoding = service.getEncoding();
+        final String         crs      = service.getCrs();
 
-        final String shard     = publisher.getProfile().getGeodataShard();
-        final String workspace = shard == null ? null : publisher.getKey().toString();
+        var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
+
+        final String shard     = userGeodataConfig.getShard();
+        final String workspace = userGeodataConfig.getWorkspace();
         final String tableName = service.getKey().toString();
         final String fileName  = service.getFileName();
         final String path      = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);
 
         // Ingest
         final ServerIngestResultResponseDto ingestResult = this.ingest(
-            externalTask, externalTaskService, path, shard, workspace, tableName
+            externalTask, externalTaskService, path, shard, workspace, tableName, encoding, crs
         );
         userServiceService.updateResourceIngestionData(ownerKey, serviceKey, ingestResult);
 
@@ -199,15 +203,16 @@ public class IngestTaskService extends AbstractTaskService {
 
         // Publish
         userServiceService.publish(ownerKey, parentKey, serviceKey);
-        
+
         // Complete task
         externalTaskService.complete(externalTask);
     }
-    
+
     private ServerIngestResultResponseDto ingest(
-        ExternalTask externalTask, ExternalTaskService externalTaskService, String path, String shard, String workspace, String tableName
+        ExternalTask externalTask, ExternalTaskService externalTaskService,
+        String path, String shard, String workspace, String table, String encoding, String crs
     ) throws InterruptedException {
-        final String                  idempotentKey = tableName;
+        final String                  idempotentKey = table;
         String                        ticket;
         ServerIngestStatusResponseDto result        = null;
         int                           counter       = 0;
@@ -216,7 +221,7 @@ public class IngestTaskService extends AbstractTaskService {
 
         if (ticketResponse == null) {
             final ServerIngestDeferredResponseDto ingestResponse = this.ingestService.ingestAsync(
-                idempotentKey, path.toString(), shard, workspace, tableName
+                idempotentKey, path.toString(), shard, workspace, table, encoding, crs
             );
             ticket = ingestResponse.getTicket();
         } else {
@@ -257,7 +262,7 @@ public class IngestTaskService extends AbstractTaskService {
             if (counter == 100) {
                 logger.warn(String.format("Ingest service ingest operation has timed out [ticket=%s]", ticket));
             }
-            
+
             throw BpmnWorkerException.builder()
                 .code(IngestServiceMessageCode.SERVICE_ERROR)
                 .message("[INGEST Service] Operation has failed")
@@ -289,7 +294,7 @@ public class IngestTaskService extends AbstractTaskService {
                 .build();
         }
     }
-    
+
     private String getUserServiceResource(
         ExternalTask externalTask, ExternalTaskService externalTaskService, UUID ownerKey, UUID serviceKey, String fileName
     ) throws BpmnWorkerException {
@@ -305,7 +310,7 @@ public class IngestTaskService extends AbstractTaskService {
                 .build();
         }
     }
-    
+
     private String getErrorCode(EnumPublishRequestType type) {
         switch (type) {
             case CATALOGUE_ASSET :

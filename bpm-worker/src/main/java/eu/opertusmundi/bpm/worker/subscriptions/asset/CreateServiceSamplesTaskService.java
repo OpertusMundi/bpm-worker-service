@@ -26,10 +26,12 @@ import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
 import eu.opertusmundi.common.model.catalogue.client.ServiceResourceSampleAreaDto;
 import eu.opertusmundi.common.model.catalogue.client.WfsLayerSample;
 import eu.opertusmundi.common.model.catalogue.client.WmsLayerSample;
+import eu.opertusmundi.common.model.geodata.UserGeodataConfiguration;
 import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.ogc.GeoServerUtils;
 import eu.opertusmundi.common.service.ogc.OgcServiceMessageCode;
+import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 import eu.opertusmundi.common.util.StreamUtils;
 
 @Service
@@ -44,6 +46,9 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
     protected long getLockDuration() {
         return this.lockDurationMillis;
     }
+
+    @Autowired
+    private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
 
     @Autowired
     private ProviderAssetService providerAssetService;
@@ -71,6 +76,8 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
             final UUID          draftKey     = this.getDraftKey(externalTask, externalTaskService);
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
+
+            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
 
             if (type == EnumAssetType.SERVICE) {
                 final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
@@ -109,11 +116,15 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
 
                         switch (serviceType) {
                             case WMS :
-                                final List<WmsLayerSample> images = this.geoServerUtils.getWmsSamples(service, sampleAreas.getAreas());
+                                final List<WmsLayerSample> images = this.geoServerUtils.getWmsSamples(
+                                    geodataConfig.getUrl(), service, sampleAreas.getAreas()
+                                );
                                 command.setSamples(this.objectMapper.valueToTree(images));
                                 break;
                             case WFS :
-                                final List<WfsLayerSample> features = this.geoServerUtils.getWfsSamples(service, sampleAreas.getAreas());
+                                final List<WfsLayerSample> features = this.geoServerUtils.getWfsSamples(
+                                    geodataConfig.getUrl(), geodataConfig.getWorkspace(), service, sampleAreas.getAreas()
+                                );
                                 command.setSamples(this.objectMapper.valueToTree(features));
                                 break;
                             default :

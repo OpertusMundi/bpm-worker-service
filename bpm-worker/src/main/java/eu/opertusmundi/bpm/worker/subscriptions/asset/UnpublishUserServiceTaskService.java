@@ -12,9 +12,8 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.model.account.AccountDto;
-import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.IngestService;
+import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 
 @Service
 public class UnpublishUserServiceTaskService extends AbstractTaskService {
@@ -25,7 +24,7 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
     private Long lockDurationMillis;
 
     @Autowired
-    private AccountRepository accountRepository;
+    private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
 
     @Autowired
     private IngestService ingestService;
@@ -47,17 +46,17 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            final UUID       ownerKey   = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
-            final UUID       serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
-            final AccountDto publisher  = this.accountRepository.findOneByKeyObject(ownerKey).orElse(null);
-            final String     shard      = publisher.getProfile().getGeodataShard();
-            final String     workspace  = ownerKey.toString();
+            final UUID   ownerKey          = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
+            final UUID   serviceKey        = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
+            final var    userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
+            final String shard             = userGeodataConfig.getShard();
+            final String workspace         = userGeodataConfig.getWorkspace();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Remove data/layer from PostgreSQL/GeoServer
-            this.ingestService.removeLayerAndData(shard, workspace, serviceKey.toString());
-            
+            this.ingestService.removeDataAndLayer(shard, workspace, serviceKey.toString());
+
             // Complete task
             externalTaskService.complete(externalTask);
 

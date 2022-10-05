@@ -174,7 +174,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
                 return;
             }
             final String userGeodataShard = account.getProfile().getGeodataShard();
-            
+
             // Build context
             final OperationContext ctx = OperationContext.builder()
                 .userId(userId)
@@ -334,7 +334,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
 
             while (!services.getItems().isEmpty()) {
                 for (final UserServiceDto service : services.getItems()) {
-                    this.ingestService.removeLayerAndData(ctx.userGeodataShard, ctx.userKey.toString(), service.getKey().toString());
+                    this.ingestService.removeDataAndLayer(ctx.userGeodataShard, ctx.userKey.toString(), service.getKey().toString());
                 }
                 index++;
                 services = this.userServiceService.findAll(ctx.userKey, ctx.userParentKey, null, null, index, 10);
@@ -368,7 +368,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
 
                     // Delete ingested data
                     StreamUtils.from(itemDetails.getIngestionInfo()).forEach(d -> {
-                        this.ingestService.removeLayerAndData(ctx.userGeodataShard, ctx.userParentKey.toString(), d.getTableName());
+                        this.ingestService.removeDataAndLayer(ctx.userGeodataShard, ctx.userParentKey.toString(), d.getTableName());
                     });
                 }
 
@@ -603,7 +603,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
         private UUID userKey;
 
         private UUID userParentKey;
-        
+
         private String userGeodataShard;
 
         private String userName;
@@ -611,7 +611,7 @@ public class DeleteAllUserDataTaskService extends AbstractTaskService implements
         private boolean accountDeleted;
 
         private boolean contractsDeleted;
-        
+
         private boolean fileSystemDeleted;
 
         @Builder.Default

@@ -56,10 +56,10 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
     @Autowired
     public RemoveOrphanCatalogueItemsTaskService(
         GeodataConfiguration geodataConfiguration,
-        AccountRepository accountRepository, 
+        AccountRepository accountRepository,
         CatalogueService catalogueService,
-        ElasticSearchService elasticSearchService, 
-        IngestService ingestService, 
+        ElasticSearchService elasticSearchService,
+        IngestService ingestService,
         Path assetDirectory
     ) {
         this.geodataConfiguration = geodataConfiguration;
@@ -98,7 +98,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
                     final AccountEntity publisher    = this.accountRepository.findOneByKey(publisherKey).orElse(null);
                     if (publisher == null) {
                         logger.info("Removing asset due to missing publisher [pid={}, publisher={}]", pid, publisherKey);
-                        
+
                         tasks.add(FeatureDeleteTask.of(feature, pid, publisherKey, null));
                     }
                 }
@@ -108,12 +108,12 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
                 // Extend lock duration
                 externalTaskService.extendLock(externalTask, this.getLockDuration());
             }
-            
+
             // Delete assets
             for (final FeatureDeleteTask task : tasks) {
                 this.deleteAssetStatistics(externalTask, externalTaskService, task);
                 this.deleteAsset(externalTask, externalTaskService, task);
-                
+
                 // Extend lock duration
                 externalTaskService.extendLock(externalTask, this.getLockDuration());
             }
@@ -126,13 +126,13 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
             this.handleFailure(externalTaskService, externalTask, ex);
         }
     }
-    
+
     private void deleteAsset(ExternalTask externalTask, ExternalTaskService externalTaskService, FeatureDeleteTask task) {
         StreamUtils.from(task.feature.getProperties().getIngestionInfo()).forEach(d -> {
             // TODO: Since the geodata shard is unknown, we skip orphan layers;
             // We should scan all registered shards and attempt to remove the
             // specified layer.
-            this.ingestService.removeLayerAndData(task.geodataShard, task.publisherKey.toString(), d.getTableName());
+            this.ingestService.removeDataAndLayer(task.geodataShard, task.publisherKey.toString(), d.getTableName());
         });
 
         try {
@@ -147,10 +147,10 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
         } catch (IOException ex) {
             logger.warn(String.format("Failed to delete asset resources [pid=%s]", task.pid), ex);
         }
-        
+
         this.catalogueService.unpublish(task.publisherKey, task.pid);
     }
-    
+
     private void deleteAssetStatistics(ExternalTask externalTask, ExternalTaskService externalTaskService, FeatureDeleteTask task) {
         try {
             final SearchSourceBuilder searchBuilder = new SearchSourceBuilder();
@@ -177,6 +177,5 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
         private String           geodataShard;
 
     }
-    
+
 }
- 

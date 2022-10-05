@@ -21,15 +21,14 @@ import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.model.EnumPublishRequestType;
 import eu.opertusmundi.bpm.worker.subscriptions.user.AbstractCustomerTaskService;
 import eu.opertusmundi.common.model.Message;
-import eu.opertusmundi.common.model.account.AccountDto;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
 import eu.opertusmundi.common.model.asset.service.UserServiceDto;
-import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.UserServiceService;
+import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 
 @Service
 public class CancelPublishTaskService extends AbstractCustomerTaskService {
@@ -40,7 +39,7 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
     private Long lockDurationMillis;
 
     @Autowired
-    private AccountRepository accountRepository;
+    private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
 
     @Autowired
     private ProviderAssetService providerAssetService;
@@ -81,10 +80,10 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
                     this.cancelPublishUserService(externalTask, externalTaskService);
                     break;
             }
-            
+
             externalTaskService.complete(externalTask);
             logger.info("Completed task. [taskId={}]", taskId);
-            
+
         } catch (final BpmnWorkerException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
@@ -107,12 +106,8 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
         final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
         final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
-        final AccountDto publisher = accountRepository.findOneByKeyObject(publisherKey).orElse(null);
-        final String     shard     = publisher.getProfile().getGeodataShard();
-        // NOTE: When shard is not initialized, use the default workspace
-        final String workspace = shard == null ? null : publisherKey.toString();
-        
-        List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
+        var           userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
+        List<Message> messages          = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
 
         // Remove all ingested resources
         final AssetDraftDto            draft            = providerAssetService.findOneDraft(draftKey);
@@ -122,7 +117,7 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
             .collect(Collectors.toList());
 
         for (final ServiceResourceDto r : serviceResources) {
-            this.deleteIngestedResource(shard, workspace, r.getId());
+            this.deleteIngestedResource(userGeodataConfig.getShard(), userGeodataConfig.getWorkspace(), r.getId());
         } ;
 
         // Reset draft
@@ -138,22 +133,19 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
         final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
         final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
-        final AccountDto publisher = accountRepository.findOneByKeyObject(ownerKey).orElse(null);
-        final String     shard     = publisher.getProfile().getGeodataShard();
-        // NOTE: When shard is not initialized, use the default workspace
-        final String workspace = shard == null ? null : ownerKey.toString();
+        var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
 
         List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() {});
 
         // Remove all ingested resources
         final UserServiceDto service = userServiceService.findOne(serviceKey);
-        this.deleteIngestedResource(shard, workspace, service.getKey().toString());
+        this.deleteIngestedResource(userGeodataConfig.getShard(), userGeodataConfig.getWorkspace(), service.getKey().toString());
 
         // Reset draft
         userServiceService.cancelPublishOperation(ownerKey, serviceKey, errorDetails, messages);
     }
-    
+
     private void deleteIngestedResource(String shard, String workspace, String tableName) {
-        this.ingestService.removeLayerAndData(shard, workspace, tableName);
+        this.ingestService.removeDataAndLayer(shard, workspace, tableName);
     }
 }

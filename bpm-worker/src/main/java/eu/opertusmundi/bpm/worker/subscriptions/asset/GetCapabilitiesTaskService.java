@@ -26,10 +26,12 @@ import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
 import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
+import eu.opertusmundi.common.model.geodata.UserGeodataConfiguration;
 import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.ogc.GeoServerUtils;
 import eu.opertusmundi.common.service.ogc.OgcServiceMessageCode;
+import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
@@ -49,6 +51,9 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
     private ProviderAssetService providerAssetService;
 
     @Autowired
+    private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
+
+    @Autowired
     private GeoServerUtils geoServerUtils;
 
     @Autowired
@@ -66,11 +71,12 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
 
             logger.info("Received task. [taskId={}]", taskId);
 
-            this.preExecution(externalTask, externalTaskService);
-
             final UUID          draftKey     = this.getDraftKey(externalTask, externalTaskService);
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
+
+            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
+
 
             if (type != EnumAssetType.SERVICE) {
                 throw BpmnWorkerException.builder()
@@ -85,6 +91,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
+
 
             // Process all services
             for (ResourceIngestionDataDto service : services) {
@@ -105,7 +112,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 logger.info("Processing endpoint {}", endpoint.getUri());
 
                 final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
-                    endpoint.getType(), endpoint.getUri(), service.getTableName().toString()
+                    endpoint.getType(), geodataConfig.getUrl(), endpoint.getUri(), geodataConfig.getWorkspace(), service.getTableName().toString()
                 );
 
                 if(resource == null) {
@@ -146,8 +153,6 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
                 .variableAsString("status", newStatus.toString())
                 .buildValues();
-
-            this.postExecution(externalTask, externalTaskService);
 
             externalTaskService.complete(externalTask, variables);
 
@@ -200,14 +205,6 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
         }
 
         return EnumAssetType.fromString(type);
-    }
-
-    protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-
-    }
-
-    protected void postExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-
     }
 
 }
