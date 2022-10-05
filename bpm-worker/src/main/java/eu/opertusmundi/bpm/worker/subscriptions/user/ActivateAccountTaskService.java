@@ -11,8 +11,10 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.PostConstruct;
 
@@ -48,6 +50,7 @@ import eu.opertusmundi.common.model.email.EnumMailType;
 import eu.opertusmundi.common.model.email.MessageDto;
 import eu.opertusmundi.common.model.file.EnumUserFileReservedEntry;
 import eu.opertusmundi.common.model.file.UserFileNamingStrategyContext;
+import eu.opertusmundi.common.model.geodata.Shard;
 import eu.opertusmundi.common.model.keycloak.server.UserDto;
 import eu.opertusmundi.common.model.keycloak.server.UserQueryDto;
 import eu.opertusmundi.common.repository.AccountRepository;
@@ -413,21 +416,18 @@ public class ActivateAccountTaskService extends AbstractTaskService {
 
     /**
      * Select a geodata shard for the specified user key
-     * 
+     *
      * @param userKey
      * @return
      */
     private String selectGeodataShard(UUID userKey) {
-        // TODO: Select shard e.g.
-        /*
-        final List<String> shards     = Optional.ofNullable(this.geodataConfiguration.getShards()).orElse(Collections.emptyList());
-        final int          shardCount = shards.size();
-        final String       shard      = shardCount == 0 ? null : shards.get(ThreadLocalRandom.current().nextInt(shardCount));
-        */
+        final List<Shard> shards     = Optional.ofNullable(this.geodataConfiguration.getShards()).orElse(Collections.emptyList());
+        final int         shardCount = shards.size();
+        final String      shard      = shardCount == 0 ? null : shards.get(ThreadLocalRandom.current().nextInt(shardCount)).getId();
 
-        return null;
+        return shard;
     }
-    
+
     /**
      * Activate account
      *
