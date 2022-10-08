@@ -66,8 +66,7 @@ ENV MARKETPLACE_URL="" \
     KEYCLOAK_REFRESH_TOKEN_FILE="" \
     CONTRACT_SIGNPDF_KEYSTORE="/secrets/signatory-keystore" \
     CONTRACT_SIGNPDF_KEYSTORE_PASSWORD_FILE="/secrets/signatory-keystore-password" \
-    CONTRACT_SIGNPDF_KEY_ALIAS="opertusmundi.eu" \
-    GEODATA_SHARDS="1"
+    CONTRACT_SIGNPDF_KEY_ALIAS="opertusmundi.eu"
 
 
 ENV GIT_COMMIT=${git_commit}
