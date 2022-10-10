@@ -23,6 +23,9 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.unpublish-user-service.lock-duration:120000}")
     private Long lockDurationMillis;
 
+    @Value("${opertusmundi.geodata.table.prefix:_}")
+    private String tablePrefix;
+
     @Autowired
     private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
 
@@ -51,11 +54,12 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
             final var    userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
             final String shard             = userGeodataConfig.getShard();
             final String workspace         = userGeodataConfig.getWorkspace();
+            final String table             = tablePrefix + serviceKey.toString();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Remove data/layer from PostgreSQL/GeoServer
-            this.ingestService.removeDataAndLayer(shard, workspace, serviceKey.toString());
+            this.ingestService.removeDataAndLayer(shard, workspace, table);
 
             // Complete task
             externalTaskService.complete(externalTask);

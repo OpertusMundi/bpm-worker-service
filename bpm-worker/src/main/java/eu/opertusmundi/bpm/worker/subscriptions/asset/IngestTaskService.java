@@ -46,6 +46,9 @@ public class IngestTaskService extends AbstractTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.ingest.lock-duration:120000}")
     private Long lockDurationMillis;
 
+    @Value("${opertusmundi.geodata.table.prefix:_}")
+    private String tablePrefix;
+
     @Override
     protected long getLockDuration() {
         return this.lockDurationMillis;
@@ -138,17 +141,18 @@ public class IngestTaskService extends AbstractTaskService {
             if (resource.getType() != EnumResourceType.FILE) {
                 continue;
             }
-            final FileResourceDto fileResource = (FileResourceDto) resource;
-            final String          tableName    = fileResource.getId();
-            final String          fileName     = fileResource.getFileName();
-            final String          encoding     = fileResource.getEncoding();
-            final String          crs          = fileResource.getCrs();
-            final String          shard        = userGeodataConfig.getShard();
-            final String          workspace    = userGeodataConfig.getWorkspace();
-            final String          path         = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
+            final FileResourceDto fileResource  = (FileResourceDto) resource;
+            final String          idempotentKey = fileResource.getId();
+            final String          tableName     = tablePrefix + fileResource.getId();
+            final String          fileName      = fileResource.getFileName();
+            final String          encoding      = fileResource.getEncoding();
+            final String          crs           = fileResource.getCrs();
+            final String          shard         = userGeodataConfig.getShard();
+            final String          workspace     = userGeodataConfig.getWorkspace();
+            final String          path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
 
             final ServerIngestResultResponseDto ingestResult = this.ingest(
-                externalTask, externalTaskService, path, shard, workspace, tableName, encoding, crs
+                externalTask, externalTaskService, idempotentKey, path, shard, workspace, tableName, encoding, crs
             );
 
             // Update metadata for the specific file
@@ -183,15 +187,16 @@ public class IngestTaskService extends AbstractTaskService {
 
         var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
 
-        final String shard     = userGeodataConfig.getShard();
-        final String workspace = userGeodataConfig.getWorkspace();
-        final String tableName = service.getKey().toString();
-        final String fileName  = service.getFileName();
-        final String path      = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);
+        final String idempotentKey = service.getKey().toString();
+        final String shard         = userGeodataConfig.getShard();
+        final String workspace     = userGeodataConfig.getWorkspace();
+        final String tableName     = tablePrefix + service.getKey().toString();
+        final String fileName      = service.getFileName();
+        final String path          = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);
 
         // Ingest
         final ServerIngestResultResponseDto ingestResult = this.ingest(
-            externalTask, externalTaskService, path, shard, workspace, tableName, encoding, crs
+            externalTask, externalTaskService, idempotentKey, path, shard, workspace, tableName, encoding, crs
         );
         userServiceService.updateResourceIngestionData(ownerKey, serviceKey, ingestResult);
 
@@ -210,9 +215,8 @@ public class IngestTaskService extends AbstractTaskService {
 
     private ServerIngestResultResponseDto ingest(
         ExternalTask externalTask, ExternalTaskService externalTaskService,
-        String path, String shard, String workspace, String table, String encoding, String crs
+        String idempotentKey, String path, String shard, String workspace, String table, String encoding, String crs
     ) throws InterruptedException {
-        final String                  idempotentKey = table;
         String                        ticket;
         ServerIngestStatusResponseDto result        = null;
         int                           counter       = 0;
