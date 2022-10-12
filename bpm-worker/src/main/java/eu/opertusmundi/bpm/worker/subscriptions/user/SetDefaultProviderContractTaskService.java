@@ -64,7 +64,7 @@ public class SetDefaultProviderContractTaskService extends AbstractCustomerTaskS
 
             while (!accounts.isEmpty()) {
                 for (final AccountDto a : accounts.getContent()) {
-                    this.providerTemplateContractService.createDefaultContract(a.getKey());
+                    this.providerTemplateContractService.updateDefaultContracts(a.getKey());
                 }
                 // Extend lock duration
                 externalTaskService.extendLock(externalTask, this.getLockDuration());

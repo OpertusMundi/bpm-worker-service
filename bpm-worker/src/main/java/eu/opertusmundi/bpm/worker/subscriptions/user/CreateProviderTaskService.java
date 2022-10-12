@@ -71,7 +71,7 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
             this.paymentService.createWallet(command);
             this.paymentService.createBankAccount(command);
 
-            this.providerTemplateContractService.createDefaultContract(userKey);
+            this.providerTemplateContractService.updateDefaultContracts(userKey);
 
             this.registrationService.completeRegistration(userKey);
 
