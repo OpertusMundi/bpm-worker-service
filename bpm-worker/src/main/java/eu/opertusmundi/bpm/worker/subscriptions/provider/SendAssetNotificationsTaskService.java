@@ -23,6 +23,7 @@ import eu.opertusmundi.bpm.worker.subscriptions.user.AbstractCustomerTaskService
 import eu.opertusmundi.common.domain.FavoriteAssetEntity;
 import eu.opertusmundi.common.feign.client.MessageServiceFeignClient;
 import eu.opertusmundi.common.model.account.AccountDto;
+import eu.opertusmundi.common.model.account.EnumKycLevel;
 import eu.opertusmundi.common.model.catalogue.client.CatalogueItemDto;
 import eu.opertusmundi.common.model.favorite.EnumAssetFavoriteAction;
 import eu.opertusmundi.common.model.message.EnumNotificationType;
@@ -118,7 +119,7 @@ public class SendAssetNotificationsTaskService extends AbstractCustomerTaskServi
             return false;
         }
         
-        return true;
+        return provider.getKycLevel() == EnumKycLevel.REGULAR;
     }
 
     private void sendNotifications(ExternalTask externalTask, ExternalTaskService externalTaskService, AccountDto account) {
