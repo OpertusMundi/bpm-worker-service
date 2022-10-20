@@ -99,7 +99,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
                     if (publisher == null) {
                         logger.info("Removing asset due to missing publisher [pid={}, publisher={}]", pid, publisherKey);
 
-                        tasks.add(FeatureDeleteTask.of(feature, pid, publisherKey, null));
+                        tasks.add(FeatureDeleteTask.of(feature, pid, publisherKey));
                     }
                 }
                 // Fetch next batch
@@ -129,10 +129,11 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
 
     private void deleteAsset(ExternalTask externalTask, ExternalTaskService externalTaskService, FeatureDeleteTask task) {
         StreamUtils.from(task.feature.getProperties().getIngestionInfo()).forEach(d -> {
-            // TODO: Since the geodata shard is unknown, we skip orphan layers;
-            // We should scan all registered shards and attempt to remove the
-            // specified layer.
-            this.ingestService.removeDataAndLayer(task.geodataShard, task.publisherKey.toString(), d.getTableName());
+            // We scan all registered shards and attempt to remove the
+            // specified layer
+            this.geodataConfiguration.getShards().stream().forEach(s-> {
+                this.ingestService.removeDataAndLayer(s.getId(), task.publisherKey.toString(), d.getTableName());
+            });
         });
 
         try {
@@ -174,7 +175,6 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
         private CatalogueFeature feature;
         private String           pid;
         private UUID             publisherKey;
-        private String           geodataShard;
 
     }
 
