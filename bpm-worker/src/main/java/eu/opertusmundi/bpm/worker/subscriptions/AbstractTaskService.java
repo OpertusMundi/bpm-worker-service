@@ -85,7 +85,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
         return this.buildException(
             BpmnWorkerMessageCode.VARIABLE_NOT_FOUND,
             "Variable not found",
-            String.format("Variable is empty. [name=%s]", name)
+            String.format("Variable not found. [name=%s]", name)
         );
     }
 
@@ -245,7 +245,7 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
 
         return UUID.fromString(value);
     }
-
+    
     protected String getErrorDetails(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         final String errorDetails = (String) externalTask.getVariable(EnumProcessInstanceVariable.BPMN_BUSINESS_ERROR_DETAILS.getValue());
 
@@ -259,13 +259,14 @@ public abstract class AbstractTaskService implements ExternalTaskHandler {
     }
 
     private String exceptionToString(Exception ex) {
-        final String result = StringUtils.join(
-            ExceptionUtils.getThrowableList(ex).stream()
-                .map(ExceptionUtils::getMessage)
-                .distinct()
-                .collect(Collectors.toList()),
-            ErrorSeparator
-        );
+        final var messages = ExceptionUtils.getThrowableList(ex).stream()
+            .map(ExceptionUtils::getMessage)
+            .distinct()
+            .collect(Collectors.toList());
+        if (ex instanceof BpmnWorkerException bpmnEx && !StringUtils.isBlank(bpmnEx.getErrorDetails())) {
+            messages.add("ErrorDetails: " + bpmnEx.getErrorDetails());
+        }
+        final String result = StringUtils.join(messages, ErrorSeparator);
 
         return result;
     }
