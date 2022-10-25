@@ -14,7 +14,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.ServiceException;
@@ -106,16 +105,11 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
             externalTaskService.complete(externalTask);
 
             logger.info("Completed task. [taskId={}]", taskId);
-        } catch (final ServiceException ex) {
-            logger.error(DEFAULT_ERROR_MESSAGE, ex);
-
-            if(ex.getCode() == BasicMessageCode.RecordNotFound) {
-                this.subscriptionBillingService.fail(businessKey);
-            }
-
-            this.handleBpmnError(externalTaskService, externalTask, ErrorCodes.SubscriptionBilling, ex);
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
+            
+            this.subscriptionBillingService.fail(businessKey);
+            
             this.handleFailure(externalTaskService, externalTask, ex);
         }
     }
