@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
@@ -237,7 +238,7 @@ public class ProfileTaskService extends AbstractTaskService {
             try {
                 result = this.profilerService.getStatus(ticket);
 
-                if (result.isCompleted()) {
+                if (result.isCompleted() || !StringUtils.isBlank(result.getComment())) {
                     break;
                 }
             } catch (Exception ex) {
