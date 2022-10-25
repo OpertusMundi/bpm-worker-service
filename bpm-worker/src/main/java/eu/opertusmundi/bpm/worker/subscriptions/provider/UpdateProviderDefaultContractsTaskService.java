@@ -1,4 +1,4 @@
-package eu.opertusmundi.bpm.worker.subscriptions.user;
+package eu.opertusmundi.bpm.worker.subscriptions.provider;
 
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
@@ -12,15 +12,16 @@ import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.ErrorCodes;
+import eu.opertusmundi.bpm.worker.subscriptions.user.AbstractCustomerTaskService;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.AccountDto;
 import eu.opertusmundi.common.repository.AccountRepository;
 import eu.opertusmundi.common.service.contract.ProviderTemplateContractService;
 
 @Service
-public class SetDefaultProviderContractTaskService extends AbstractCustomerTaskService {
+public class UpdateProviderDefaultContractsTaskService extends AbstractCustomerTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SetDefaultProviderContractTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(UpdateProviderDefaultContractsTaskService.class);
 
     @Value("${opertusmundi.bpm.worker.tasks.set-provider-default-contract.lock-duration:120000}")
     private Long lockDurationMillis;
@@ -29,7 +30,7 @@ public class SetDefaultProviderContractTaskService extends AbstractCustomerTaskS
     final private ProviderTemplateContractService providerTemplateContractService;
 
     @Autowired
-    public SetDefaultProviderContractTaskService(
+    public UpdateProviderDefaultContractsTaskService(
         AccountRepository accountRepository,
         ProviderTemplateContractService providerTemplateContractService
     ) {
@@ -41,7 +42,7 @@ public class SetDefaultProviderContractTaskService extends AbstractCustomerTaskS
 
     @Override
     public String getTopicName() {
-        return "setDefaultProviderContract";
+        return "updateProviderDefaultContracts";
     }
 
     @Override
