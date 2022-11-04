@@ -144,6 +144,7 @@ public class SendAssetNotificationsTaskService extends AbstractCustomerTaskServi
                 final String               idempotentKey = IDEMPOTENT_KEY_PREFIX + f.getId().toString();
                 final EnumNotificationType type          = EnumNotificationType.ASSET_AVAILABLE_TO_PURCHASE;
                 final Map<String, Object>  variables     = externalTask.getAllVariables();
+                variables.put("assetId", item.getId());
                 variables.put("assetName", item.getTitle());
 
                 final JsonNode data = this.notificationMessageBuilder.collectNotificationData(type, variables);
