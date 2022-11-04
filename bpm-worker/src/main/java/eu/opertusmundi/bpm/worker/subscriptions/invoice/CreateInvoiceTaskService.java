@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.model.Parameters;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.model.payment.EnumInvoiceType;
 import eu.opertusmundi.common.service.invoice.InvoiceGeneratorService;
 import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
@@ -25,7 +26,7 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
 
     @Value("${opertusmundi.bpm.worker.tasks.create-invoice.lock-duration:120000}")
     private Long lockDurationMillis;
-  
+
     @Autowired
     private InvoiceGeneratorService invoiceGeneratorService;
 
@@ -47,20 +48,23 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
-            final UUID          payInKey  = UUID.fromString(externalTask.getBusinessKey());
+            final var payInKey         = UUID.fromString(externalTask.getBusinessKey());
+            final var invoiceType      = this.getVariableAsString(externalTask, externalTaskService, "invoiceType", "ORDER_INVOICE");
+            final var invoiceTypeValue = EnumInvoiceType.valueOf(invoiceType);
+
             Map<String, Object> variables = new HashMap<>();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
 
             // Create invoice
-            final String invoice = this.invoiceGeneratorService.generateInvoicePdf(payInKey);
+            final String invoice = this.invoiceGeneratorService.generateInvoicePdf(invoiceTypeValue, payInKey);
 
             // Complete task
             variables = BpmInstanceVariablesBuilder.builder()
                 .variableAsString(Parameters.SEND_MAIL_ATTACHMENT_PREFIX + "Invoice", invoice)
                 .buildValues();
-            
+
             externalTaskService.complete(externalTask, variables);
 
             logger.info("Completed task. [taskId={}]", taskId);
