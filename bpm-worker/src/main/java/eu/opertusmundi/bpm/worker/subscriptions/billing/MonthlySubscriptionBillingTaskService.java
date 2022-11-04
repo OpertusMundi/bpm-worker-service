@@ -63,7 +63,7 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
         try {
             logger.info("Received task. [taskId={}]", taskId);
 
-            final SubscriptionBillingBatchDto batch = this.subscriptionBillingService.findOneByKey(businessKey).orElse(null);
+            final SubscriptionBillingBatchDto batch = this.subscriptionBillingService.findOneBillingIntervalByKey(businessKey).orElse(null);
             if (batch == null) {
                 throw new ServiceException(BasicMessageCode.RecordNotFound, String.format(
                     "Subscription billing batch was not found [businessKey=%s]", businessKey
