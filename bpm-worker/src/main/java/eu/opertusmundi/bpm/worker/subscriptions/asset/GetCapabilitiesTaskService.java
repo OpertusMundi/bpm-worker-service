@@ -26,6 +26,7 @@ import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
 import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
+import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
 import eu.opertusmundi.common.model.geodata.UserGeodataConfiguration;
 import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
@@ -75,7 +76,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
 
-            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
+            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
 
 
             if (type != EnumAssetType.SERVICE) {
@@ -112,7 +113,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 logger.info("Processing endpoint {}", endpoint.getUri());
 
                 final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
-                    endpoint.getType(), geodataConfig.getUrl(), endpoint.getUri(), geodataConfig.getWorkspace(), service.getTableName().toString()
+                    endpoint.getType(), geodataConfig.getUrl(), endpoint.getUri(), geodataConfig.getEffectiveWorkspace(), service.getTableName().toString()
                 );
 
                 if(resource == null) {

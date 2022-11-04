@@ -132,7 +132,7 @@ public class RemoveOrphanCatalogueItemsTaskService extends AbstractTaskService {
             // We scan all registered shards and attempt to remove the
             // specified layer
             this.geodataConfiguration.getShards().stream().forEach(s-> {
-                this.ingestService.removeDataAndLayer(s.getId(), task.publisherKey.toString(), d.getTableName());
+                this.ingestService.removeDataAndLayer(s.getId(), "_" + task.publisherKey.toString(), d.getTableName());
             });
         });
 

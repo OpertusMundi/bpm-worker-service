@@ -303,7 +303,10 @@ public class DefaultAccountDataDeletionService implements AccountDataDeletionSer
             while (!services.getItems().isEmpty()) {
                 for (final UserServiceDto service : services.getItems()) {
                     this.ingestService.removeDataAndLayer(
-                        ctx.getUserGeodataShard(), "_" + ctx.getUserKey().toString(), "_" + service.getKey().toString()
+                        // Since we are not using a UserGeodataConfiguration
+                        // instance, we compose the workspace and service
+                        // names manually by adding the required prefixes
+                        ctx.getUserGeodataShard(), "p_" + ctx.getUserParentKey().toString(), "_" + service.getKey().toString()
                     );
                 }
                 index++;
@@ -342,6 +345,9 @@ public class DefaultAccountDataDeletionService implements AccountDataDeletionSer
 
                     // Delete ingested data
                     StreamUtils.from(itemDetails.getIngestionInfo()).forEach(d -> {
+                        // Since we are not using a UserGeodataConfiguration
+                        // instance, we compose the workspace name manually by
+                        // adding the required prefix
                         this.ingestService.removeDataAndLayer(ctx.getUserGeodataShard(), "_" + ctx.getUserParentKey().toString(), d.getTableName());
                     });
                 }

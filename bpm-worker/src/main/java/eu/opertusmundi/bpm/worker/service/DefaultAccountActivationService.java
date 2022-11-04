@@ -362,9 +362,20 @@ public class DefaultAccountActivationService implements AccountActivationService
      * @return
      */
     private String selectGeodataShard(UUID userKey) {
-        final List<Shard> shards     = Optional.ofNullable(this.geodataConfiguration.getShards()).orElse(Collections.emptyList());
-        final int         shardCount = shards.size();
-        final String      shard      = shardCount == 0 ? null : shards.get(ThreadLocalRandom.current().nextInt(shardCount)).getId();
+        final AccountDto user  = this.accountRepository.findOneByKeyObject(userKey).get();
+        String           shard = null;
+
+        if (user.getParentKey() != null) {
+            // If this is a vendor account i.e. parent key is not null, we set
+            // the geodata shard to the parent's value to make the private OGC
+            // services of the new account visible to all organization users
+            final AccountDto parentUser = this.accountRepository.findOneByKeyObject(user.getParentKey()).get();
+            shard = parentUser.getProfile().getGeodataShard();
+        } else {
+            final List<Shard> shards     = Optional.ofNullable(this.geodataConfiguration.getShards()).orElse(Collections.emptyList());
+            final int         shardCount = shards.size();
+            shard = shardCount == 0 ? null : shards.get(ThreadLocalRandom.current().nextInt(shardCount)).getId();
+        }
 
         return shard;
     }

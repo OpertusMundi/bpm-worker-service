@@ -26,6 +26,7 @@ import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
 import eu.opertusmundi.common.model.catalogue.client.ServiceResourceSampleAreaDto;
 import eu.opertusmundi.common.model.catalogue.client.WfsLayerSample;
 import eu.opertusmundi.common.model.catalogue.client.WmsLayerSample;
+import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
 import eu.opertusmundi.common.model.geodata.UserGeodataConfiguration;
 import eu.opertusmundi.common.model.ingest.ResourceIngestionDataDto;
 import eu.opertusmundi.common.service.ProviderAssetService;
@@ -77,7 +78,7 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
 
-            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
+            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
 
             if (type == EnumAssetType.SERVICE) {
                 final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
@@ -123,7 +124,7 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
                                 break;
                             case WFS :
                                 final List<WfsLayerSample> features = this.geoServerUtils.getWfsSamples(
-                                    geodataConfig.getUrl(), geodataConfig.getWorkspace(), service, sampleAreas.getAreas()
+                                    geodataConfig.getUrl(), geodataConfig.getEffectiveWorkspace(), service, sampleAreas.getAreas()
                                 );
                                 command.setSamples(this.objectMapper.valueToTree(features));
                                 break;

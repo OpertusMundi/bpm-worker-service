@@ -24,6 +24,7 @@ import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
 import eu.opertusmundi.common.model.asset.service.UserServiceDto;
 import eu.opertusmundi.common.model.file.FileSystemException;
+import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
 import eu.opertusmundi.common.model.ingest.ServerIngestDeferredResponseDto;
 import eu.opertusmundi.common.model.ingest.ServerIngestPublishResponseDto;
@@ -132,7 +133,7 @@ public class IngestTaskService extends AbstractTaskService {
         final boolean published    = this.getVariableAsBooleanString(externalTask, externalTaskService, "published");
 
         final AssetDraftDto draft             = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-        var                 userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
+        var                 userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
 
         final List<ResourceDto> resources = draft.getCommand().getResources();
 
@@ -148,7 +149,7 @@ public class IngestTaskService extends AbstractTaskService {
             final String          encoding      = fileResource.getEncoding();
             final String          crs           = fileResource.getCrs();
             final String          shard         = userGeodataConfig.getShard();
-            final String          workspace     = userGeodataConfig.getWorkspace();
+            final String          workspace     = userGeodataConfig.getEffectiveWorkspace();
             final String          path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
 
             final ServerIngestResultResponseDto ingestResult = this.ingest(
@@ -185,11 +186,11 @@ public class IngestTaskService extends AbstractTaskService {
         final String         encoding = service.getEncoding();
         final String         crs      = service.getCrs();
 
-        var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
+        var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey, EnumGeodataWorkspace.PRIVATE);
 
         final String idempotentKey = service.getKey().toString();
         final String shard         = userGeodataConfig.getShard();
-        final String workspace     = userGeodataConfig.getWorkspace();
+        final String workspace     = userGeodataConfig.getEffectiveWorkspace();
         final String tableName     = tablePrefix + service.getKey().toString();
         final String fileName      = service.getFileName();
         final String path          = this.getUserServiceResource(externalTask, externalTaskService, ownerKey, serviceKey, fileName);

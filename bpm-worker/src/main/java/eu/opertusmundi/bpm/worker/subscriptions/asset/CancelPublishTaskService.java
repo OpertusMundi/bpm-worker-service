@@ -25,6 +25,7 @@ import eu.opertusmundi.common.model.asset.AssetDraftDto;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
 import eu.opertusmundi.common.model.asset.service.UserServiceDto;
+import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.UserServiceService;
@@ -106,7 +107,7 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
         final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
         final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
-        var           userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey);
+        var           userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
         List<Message> messages          = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() { });
 
         // Remove all ingested resources
@@ -117,7 +118,7 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
             .collect(Collectors.toList());
 
         for (final ServiceResourceDto r : serviceResources) {
-            this.deleteIngestedResource(userGeodataConfig.getShard(), userGeodataConfig.getWorkspace(), r.getId());
+            this.deleteIngestedResource(userGeodataConfig.getShard(), userGeodataConfig.getEffectiveWorkspace(), r.getId());
         } ;
 
         // Reset draft
@@ -133,13 +134,13 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
         final String errorDetails  = this.getErrorDetails(externalTask, externalTaskService);
         final String errorMessages = this.getErrorMessages(externalTask, externalTaskService);
 
-        var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
+        var userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey, EnumGeodataWorkspace.PRIVATE);
 
         List<Message> messages = objectMapper.readValue(errorMessages, new TypeReference<List<Message>>() {});
 
         // Remove all ingested resources
         final UserServiceDto service = userServiceService.findOne(serviceKey);
-        this.deleteIngestedResource(userGeodataConfig.getShard(), userGeodataConfig.getWorkspace(), service.getKey().toString());
+        this.deleteIngestedResource(userGeodataConfig.getShard(), userGeodataConfig.getEffectiveWorkspace(), service.getKey().toString());
 
         // Reset draft
         userServiceService.cancelPublishOperation(ownerKey, serviceKey, errorDetails, messages);

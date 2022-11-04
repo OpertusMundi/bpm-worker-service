@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
+import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 
@@ -51,9 +52,9 @@ public class UnpublishUserServiceTaskService extends AbstractTaskService {
 
             final UUID   ownerKey          = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
             final UUID   serviceKey        = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
-            final var    userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey);
+            final var    userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(ownerKey, EnumGeodataWorkspace.PRIVATE);
             final String shard             = userGeodataConfig.getShard();
-            final String workspace         = userGeodataConfig.getWorkspace();
+            final String workspace         = userGeodataConfig.getEffectiveWorkspace();
             final String table             = tablePrefix + serviceKey.toString();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
