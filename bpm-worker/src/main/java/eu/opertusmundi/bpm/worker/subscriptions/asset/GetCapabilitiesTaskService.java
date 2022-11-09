@@ -137,7 +137,7 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 resource.setId(UUID.randomUUID().toString());
                 resource.setParentId(service.getKey());
 
-                this.providerAssetService.addServiceResource(publisherKey, draftKey, resource);
+                this.providerAssetService.addResource(publisherKey, draftKey, resource);
             }
 
             // Update draft status
