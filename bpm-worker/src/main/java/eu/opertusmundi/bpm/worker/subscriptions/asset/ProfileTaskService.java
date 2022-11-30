@@ -211,16 +211,12 @@ public class ProfileTaskService extends AbstractTaskService {
     ) throws InterruptedException {
 
         final DataProfilerOptions options = DataProfilerOptions.builder()
-                .aspectRatio(this.aspectRatio)
-                .crs(crs)
-                .encoding(encoding)
-                .height(this.height)
-                .width(this.width)
-                .build();
-
-        if (assetType == EnumAssetType.VECTOR) {
-            options.setGeometry("WKT");
-        }
+            .aspectRatio(this.aspectRatio)
+            .crs(crs)
+            .encoding(encoding)
+            .height(this.height)
+            .width(this.width)
+            .build();
 
         final DataProfilerDeferredResponseDto profilerResponse = this.profilerService.profile(idempotentKey, assetType, path.toString(), options);
         final String                          ticket           = profilerResponse.getTicket();
