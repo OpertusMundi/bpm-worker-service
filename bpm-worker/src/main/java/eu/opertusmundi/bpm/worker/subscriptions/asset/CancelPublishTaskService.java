@@ -26,9 +26,11 @@ import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.ServiceResourceDto;
 import eu.opertusmundi.common.model.asset.service.UserServiceDto;
 import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
+import eu.opertusmundi.common.model.message.client.ClientMessageCommandDto;
 import eu.opertusmundi.common.service.IngestService;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.UserServiceService;
+import eu.opertusmundi.common.service.messaging.MessageService;
 import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
 
 @Service
@@ -39,18 +41,27 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.cancel-publish.lock-duration:120000}")
     private Long lockDurationMillis;
 
+    private final IngestService                    ingestService;
+    private final MessageService                   messageService;
+    private final ProviderAssetService             providerAssetService;
+    private final UserGeodataConfigurationResolver userGeodataConfigurationResolver;
+    private final UserServiceService               userServiceService;
+    
     @Autowired
-    private UserGeodataConfigurationResolver userGeodataConfigurationResolver;
-
-    @Autowired
-    private ProviderAssetService providerAssetService;
-
-    @Autowired
-    private UserServiceService userServiceService;
-
-    @Autowired
-    private IngestService ingestService;
-
+    public CancelPublishTaskService(
+        IngestService                    ingestService,
+        MessageService                   messageService,
+        ProviderAssetService             providerAssetService,
+        UserGeodataConfigurationResolver userGeodataConfigurationResolver,
+        UserServiceService               userServiceService
+    ) {
+        this.ingestService                    = ingestService;
+        this.messageService                   = messageService;
+        this.providerAssetService             = providerAssetService;
+        this.userGeodataConfigurationResolver = userGeodataConfigurationResolver;
+        this.userServiceService               = userServiceService;
+    }
+    
     @Override
     public String getTopicName() {
         return "cancelPublish";
@@ -123,6 +134,12 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
 
         // Reset draft
         providerAssetService.cancelPublishDraft(publisherKey, draftKey, errorDetails, messages);
+        // Send message to provider
+        var subject        = String.format("Asset Publish Failure: %s %s", draft.getTitle(), draft.getVersion());
+        var text           = draft.getHelpdeskErrorMessage();
+        var messageCommand = ClientMessageCommandDto.of(subject, text);
+        messageService.sendMessage(draft.getHelpdeskSetErrorAccount().getKey(), draft.getPublisher().getKey(), messageCommand);
+        
     }
 
     @Transactional
@@ -144,6 +161,11 @@ public class CancelPublishTaskService extends AbstractCustomerTaskService {
 
         // Reset draft
         userServiceService.cancelPublishOperation(ownerKey, serviceKey, errorDetails, messages);
+        // Send message to provider
+        var subject        = String.format("User Service Publish Failure: %s %s", service.getTitle(), service.getVersion());
+        var text           = service.getHelpdeskErrorMessage();
+        var messageCommand = ClientMessageCommandDto.of(subject, text);
+        messageService.sendMessage(service.getHelpdeskSetErrorAccount().getKey(), service.getOwner().getKey(), messageCommand);
     }
 
     private void deleteIngestedResource(String shard, String workspace, String tableName) {
