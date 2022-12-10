@@ -1,6 +1,7 @@
 package eu.opertusmundi.bpm.worker.subscriptions.asset;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -20,6 +21,8 @@ import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
+import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
+import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.catalogue.client.CatalogueItemMetadataCommandDto;
 import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.catalogue.client.EnumSpatialDataServiceType;
@@ -33,6 +36,7 @@ import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.ogc.GeoServerUtils;
 import eu.opertusmundi.common.service.ogc.OgcServiceMessageCode;
 import eu.opertusmundi.common.service.ogc.UserGeodataConfigurationResolver;
+import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 import eu.opertusmundi.common.util.StreamUtils;
 
 @Service
@@ -71,8 +75,6 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
             final String taskId = externalTask.getId();
 
             logger.info("Received task. [taskId={}]", taskId);
-
-            this.preExecution(externalTask, externalTaskService);
 
             final UUID          draftKey     = this.getDraftKey(externalTask, externalTaskService);
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
@@ -144,10 +146,22 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
                 }
             }
 
-            // Complete task
-            this.postExecution(externalTask, externalTaskService);
+            // Update draft status
+            final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
+            final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PUBLISHING;
 
-            externalTaskService.complete(externalTask);
+            command.setAssetKey(draftKey);
+            command.setPublisherKey(publisherKey);
+            command.setStatus(newStatus);
+
+            this.providerAssetService.updateStatus(command);
+
+            // Complete task
+            final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder()
+                .variableAsString("status", newStatus.toString())
+                .buildValues();
+
+            externalTaskService.complete(externalTask, variables);           
 
             logger.info("Completed task. [taskId={}]", taskId);
         } catch (final ServiceException ex) {
@@ -196,14 +210,6 @@ public class CreateServiceSamplesTaskService extends AbstractTaskService {
         }
 
         return EnumAssetType.fromString(type);
-    }
-
-    protected void preExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-
-    }
-
-    protected void postExecution(ExternalTask externalTask, ExternalTaskService externalTaskService) {
-
     }
 
 }
