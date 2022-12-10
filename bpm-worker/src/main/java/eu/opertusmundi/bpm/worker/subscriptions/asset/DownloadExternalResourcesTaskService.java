@@ -63,23 +63,23 @@ public class DownloadExternalResourcesTaskService extends AbstractTaskService {
         final String taskId = externalTask.getId();
 
         logger.info("Received task. [taskId={}]", taskId);
-        
+
         final UUID          draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
         final UUID          publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
         final AssetDraftDto draft        = providerAssetService.findOneDraft(draftKey);
-               
+
         final List<ExternalUrlResourceDto> externalResources = draft.getCommand().getResources().stream()
             .filter(r -> r.getType() == EnumResourceType.EXTERNAL_URL)
             .map(r -> (ExternalUrlResourceDto) r)
             .toList();
-        
+
         logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-        
+
         Path tempPath = null;
-        
+
         try {
             tempPath = this.setupTempFolder(draftKey);
-            
+
             for(var r : externalResources) {
                 var targetPath = this.downloadResource(externalTask, externalTaskService, tempPath, r);
                 var command = ExternalUrlFileResourceCommandDto.builder()
@@ -94,10 +94,10 @@ public class DownloadExternalResourcesTaskService extends AbstractTaskService {
                     .size(targetPath.toFile().length())
                     .url(r.getUrl())
                     .build();
-                
+
                 this.providerAssetService.addFileResourceFromExternalUrl(command);
             }
-                       
+
             // Complete task
             final Map<String, Object> variables = BpmInstanceVariablesBuilder.builder().buildValues();
             externalTaskService.complete(externalTask, variables);
@@ -117,7 +117,7 @@ public class DownloadExternalResourcesTaskService extends AbstractTaskService {
             }
         }
     }
-    
+
     private Path downloadResource(
         ExternalTask externalTask, ExternalTaskService externalTaskService, Path tempPath, ExternalUrlResourceDto urlResource
     ) {
@@ -130,7 +130,7 @@ public class DownloadExternalResourcesTaskService extends AbstractTaskService {
 
         final var watch = new StopWatch();
         watch.start();
-        
+
         try (
             BufferedInputStream in = new BufferedInputStream(new URL(urlResource.getUrl()).openStream());
             FileOutputStream fileOutputStream = new FileOutputStream(targetFile);
@@ -150,10 +150,10 @@ public class DownloadExternalResourcesTaskService extends AbstractTaskService {
         } catch (IOException ex) {
             throw new ServiceException(String.format("Failed to download file [url=%s]", urlResource.getUrl()), ex);
         }
-        
+
         return targetFile.toPath();
     }
-    
+
     private void deleteExistingFile(Path targetPath) throws ServiceException {
         try {
             Files.delete(targetPath);
@@ -171,8 +171,8 @@ public class DownloadExternalResourcesTaskService extends AbstractTaskService {
         }
         return taskTempDir;
     }
-    
+
     private void cleanupTempFolder(Path path) {
         FileUtils.deleteQuietly(path.toFile());
-    }    
+    }
 }
