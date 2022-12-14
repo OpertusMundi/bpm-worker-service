@@ -18,15 +18,15 @@ import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.AccountDto;
-import eu.opertusmundi.common.model.payment.SubscriptionBillingBatchDto;
-import eu.opertusmundi.common.model.payment.SubscriptionBillingDto;
+import eu.opertusmundi.common.model.payment.ServiceBillingDto;
+import eu.opertusmundi.common.model.payment.ServiceBillingBatchDto;
 import eu.opertusmundi.common.repository.AccountRepository;
-import eu.opertusmundi.common.service.SubscriptionBillingService;
+import eu.opertusmundi.common.service.ServiceBillingService;
 
 @Service
-public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
+public class MonthlyServiceBillingTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MonthlySubscriptionBillingTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MonthlyServiceBillingTaskService.class);
 
     private static final String PARAMETER_YEAR  = "year";
     private static final String PARAMETER_MONTH = "month";
@@ -35,7 +35,7 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
     private AccountRepository accountRepository;
 
     @Autowired
-    private SubscriptionBillingService subscriptionBillingService;
+    private ServiceBillingService serviceBillingService;
 
     @Value("${opertusmundi.bpm.worker.tasks.monthly-subscription-billing.lock-duration:300000}")
     private Long lockDurationMillis;
@@ -45,7 +45,7 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
 
     @Override
     public String getTopicName() {
-        return "monthlySubscriptionBilling";
+        return "monthlyServiceBilling";
     }
 
     @Override
@@ -63,7 +63,7 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
         try {
             logger.info("Received task. [taskId={}]", taskId);
 
-            final SubscriptionBillingBatchDto batch = this.subscriptionBillingService.findOneBillingIntervalByKey(businessKey).orElse(null);
+            final ServiceBillingBatchDto batch = this.serviceBillingService.findOneBillingIntervalByKey(businessKey).orElse(null);
             if (batch == null) {
                 throw new ServiceException(BasicMessageCode.RecordNotFound, String.format(
                     "Subscription billing batch was not found [businessKey=%s]", businessKey
@@ -77,15 +77,15 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
             BigDecimal       totalPrice             = BigDecimal.ZERO;
             BigDecimal       totalPriceExcludingTax = BigDecimal.ZERO;
             BigDecimal       totalTax               = BigDecimal.ZERO;
-            Page<AccountDto> page                   = accountRepository.findAllConsumersObjects(null, PageRequest.of(pageIndex, batchSize), false);
+            Page<AccountDto> page                   = accountRepository.findAllObjects(null, PageRequest.of(pageIndex, batchSize), false);
 
             while (!page.isEmpty()) {
                 for (final AccountDto account : page.getContent()) {
-                    final List<SubscriptionBillingDto> result = this.subscriptionBillingService.create(
+                    final List<ServiceBillingDto> result = this.serviceBillingService.create(
                         account.getKey(), year, month, false
                     );
                     totalSubscriptions += result.size();
-                    for (final SubscriptionBillingDto b : result) {
+                    for (final ServiceBillingDto b : result) {
                         totalPrice             = totalPrice.add(b.getTotalPrice());
                         totalPriceExcludingTax = totalPriceExcludingTax.add(b.getTotalPriceExcludingTax());
                         totalTax               = totalTax.add(b.getTotalTax());
@@ -99,7 +99,7 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
                 page = accountRepository.findAllConsumersObjects(null, PageRequest.of(pageIndex, batchSize), false);
             }
 
-            this.subscriptionBillingService.complete(businessKey, totalSubscriptions, totalPrice, totalPriceExcludingTax, totalTax);
+            this.serviceBillingService.complete(businessKey, totalSubscriptions, totalPrice, totalPriceExcludingTax, totalTax);
 
             // Complete task
             externalTaskService.complete(externalTask);
@@ -108,7 +108,7 @@ public class MonthlySubscriptionBillingTaskService extends AbstractTaskService {
         } catch (final Exception ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
             
-            this.subscriptionBillingService.fail(businessKey);
+            this.serviceBillingService.fail(businessKey);
             
             this.handleFailure(externalTaskService, externalTask, ex);
         }

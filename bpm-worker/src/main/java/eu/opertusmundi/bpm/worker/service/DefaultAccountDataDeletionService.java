@@ -297,7 +297,7 @@ public class DefaultAccountDataDeletionService implements AccountDataDeletionSer
         try {
             int index = 0;
             PageResultDto<UserServiceDto> services = this.userServiceService.findAll(
-                ctx.getUserKey(), ctx.getUserParentKey(), null, null, index, 10
+                ctx.getUserKey(), ctx.getUserParentKey(), null, null, null, index, 10
             );
 
             while (!services.getItems().isEmpty()) {
@@ -310,7 +310,7 @@ public class DefaultAccountDataDeletionService implements AccountDataDeletionSer
                     );
                 }
                 index++;
-                services = this.userServiceService.findAll(ctx.getUserKey(), ctx.getUserParentKey(), null, null, index, 10);
+                services = this.userServiceService.findAll(ctx.getUserKey(), ctx.getUserParentKey(), null, null, null, index, 10);
 
                 // Extend lock duration
                 ctx.getExtendLock().run();

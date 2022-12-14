@@ -14,22 +14,22 @@ import org.springframework.stereotype.Service;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
-import eu.opertusmundi.common.service.SubscriptionBillingService;
+import eu.opertusmundi.common.service.ServiceBillingService;
 
 @Service
-public class UpdatePayoffSubscriptionBillingTaskService extends AbstractTaskService {
+public class CancelPayoffServiceBillingTaskService extends AbstractTaskService {
 
-    private static final Logger logger = LoggerFactory.getLogger(UpdatePayoffSubscriptionBillingTaskService.class);
+    private static final Logger logger = LoggerFactory.getLogger(CancelPayoffServiceBillingTaskService.class);
 
-    @Value("${opertusmundi.bpm.worker.tasks.update-payoff-subscription-billing.lock-duration:120000}")
+    @Value("${opertusmundi.bpm.worker.tasks.cancel-payoff-subscription-billing.lock-duration:120000}")
     private Long lockDurationMillis;
 
     @Autowired
-    private SubscriptionBillingService subscriptionBillingService;
+    private ServiceBillingService serviceBillingService;
 
     @Override
     public String getTopicName() {
-        return "updatePayoffSubscriptionBillingRecords";
+        return "cancelPayoffServiceBillingRecords";
     }
 
     @Override
@@ -47,7 +47,7 @@ public class UpdatePayoffSubscriptionBillingTaskService extends AbstractTaskServ
             final Map<String, Object> variables = new HashMap<>();
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-            this.subscriptionBillingService.updatePayoff(payInKey);
+            this.serviceBillingService.cancelPayoff(payInKey);
 
             // Complete task
             externalTaskService.complete(externalTask, variables);
