@@ -17,9 +17,8 @@ BEGIN
   DELETE from "analytics".payin_item_hist h where h.consumer = p_account_id or h.provider = p_account_id;
 
   -- Delete billing records (deletes records from all payin related tables)
-  DELETE from "billing".subscription_billing b  where b."subscription" in (
-    select s."id" from web.account_subscription s where s.consumer = p_account_id or s.provider = p_account_id
-  );
+  DELETE from "billing".service_billing b  where b."billed_account" = p_account_id;
+  
   DELETE from "billing".payin_recurring_registration r where r."subscription" in (
     select s."id" from web.account_subscription s where s.consumer = p_account_id or s.provider = p_account_id
   );
@@ -64,9 +63,9 @@ BEGIN
   DELETE from messaging.notification where recipient = p_account_key;
 
   -- Delete orders (provider)
-  DELETE from "order".order o where o.id in (select distinct i."order" from "order".order_item i where i.provider = p_account_id);
+  DELETE from "order"."order" o where o.id in (select distinct i."order" from "order".order_item i where i.provider = p_account_id);
   -- Delete orders (consumer)
-  DELETE from "order".order o where o.consumer = p_account_id;
+  DELETE from "order"."order" o where o.consumer = p_account_id;
   -- Delete cart history
   DELETE from "order".cart c where c.account = p_account_id;
 
