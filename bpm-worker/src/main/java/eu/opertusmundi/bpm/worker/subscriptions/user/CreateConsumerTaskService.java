@@ -15,7 +15,8 @@ import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ConsumerRegistrationService;
-import eu.opertusmundi.common.service.mangopay.PaymentService;
+import eu.opertusmundi.common.service.mangopay.UserService;
+import eu.opertusmundi.common.service.mangopay.WalletService;
 
 @Service
 public class CreateConsumerTaskService extends AbstractCustomerTaskService {
@@ -29,7 +30,10 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
     private ConsumerRegistrationService registrationService;
 
     @Autowired
-    private PaymentService paymentService;
+    private UserService userService;
+
+    @Autowired
+    private WalletService walletService;
 
     @Override
     public String getTopicName() {
@@ -55,15 +59,15 @@ public class CreateConsumerTaskService extends AbstractCustomerTaskService {
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.paymentService.createUser(command);
+            this.userService.createUser(command);
 
-            this.paymentService.createWallet(command);
+            this.walletService.createWallet(command);
 
             this.registrationService.completeRegistration(userKey);
 
             // Initial update with values from MANGOPAY
-            this.paymentService.updateCustomerWalletFunds(userKey, customerType);
-            this.paymentService.updateUserBlockStatus(userKey, customerType);
+            this.walletService.updateCustomerWalletFunds(userKey, customerType);
+            this.userService.updateUserBlockStatus(userKey, customerType);
 
             externalTaskService.complete(externalTask);
 

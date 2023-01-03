@@ -15,7 +15,7 @@ import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ConsumerRegistrationService;
-import eu.opertusmundi.common.service.mangopay.PaymentService;
+import eu.opertusmundi.common.service.mangopay.UserService;
 
 @Service
 public class UpdateConsumerTaskService extends AbstractCustomerTaskService {
@@ -29,7 +29,7 @@ public class UpdateConsumerTaskService extends AbstractCustomerTaskService {
     private ConsumerRegistrationService registrationService;
 
     @Autowired
-    private PaymentService paymentService;
+    private UserService userService;
 
     @Override
     public String getTopicName() {
@@ -54,7 +54,7 @@ public class UpdateConsumerTaskService extends AbstractCustomerTaskService {
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.paymentService.updateUser(command);
+            this.userService.updateUser(command);
 
             this.registrationService.completeRegistration(userKey);
 

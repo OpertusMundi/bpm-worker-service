@@ -15,7 +15,9 @@ import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ProviderRegistrationService;
-import eu.opertusmundi.common.service.mangopay.PaymentService;
+import eu.opertusmundi.common.service.mangopay.BankAccountService;
+import eu.opertusmundi.common.service.mangopay.UserService;
+import eu.opertusmundi.common.service.mangopay.WalletService;
 
 @Service
 public class UpdateProviderTaskService extends AbstractCustomerTaskService {
@@ -25,15 +27,22 @@ public class UpdateProviderTaskService extends AbstractCustomerTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.provider-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
-    final private PaymentService              paymentService;
+    final private BankAccountService          bankAccountService;
     final private ProviderRegistrationService registrationService;
+    final private UserService                 userService;
 
     @Autowired
-    public UpdateProviderTaskService(PaymentService paymentService, ProviderRegistrationService registrationService) {
+    public UpdateProviderTaskService(
+        BankAccountService          bankAccountService,
+        ProviderRegistrationService registrationService, 
+        UserService                 userService,
+        WalletService               walletService
+    ) {
         super();
 
-        this.paymentService      = paymentService;
+        this.bankAccountService  = bankAccountService;
         this.registrationService = registrationService;
+        this.userService         = userService;
     }
 
     @Override
@@ -59,8 +68,8 @@ public class UpdateProviderTaskService extends AbstractCustomerTaskService {
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.paymentService.updateUser(command);
-            this.paymentService.updateBankAccount(command);
+            this.userService.updateUser(command);
+            this.bankAccountService.updateBankAccount(command);
 
             this.registrationService.completeRegistration(userKey);
 

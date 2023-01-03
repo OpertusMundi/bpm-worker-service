@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.payment.PayInDto;
-import eu.opertusmundi.common.service.mangopay.PaymentService;
+import eu.opertusmundi.common.service.mangopay.PayInService;
 
 @Service
 public class UpdatePayInStatusTaskService extends AbstractTaskService {
@@ -26,7 +26,7 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
     private Long lockDurationMillis;
 
     @Autowired
-    private PaymentService paymentService;
+    private PayInService payInService;
 
     @Override
     public String getTopicName() {
@@ -54,7 +54,7 @@ public class UpdatePayInStatusTaskService extends AbstractTaskService {
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
             // Update PayIn
-            final PayInDto    payIn = paymentService.updatePayIn(payInKey, payInId);
+            final PayInDto    payIn = payInService.updatePayIn(payInKey, payInId);
             // Set PayIn updated status in the workflow instance
             variables.put(payInStatusVariableName, payIn.getStatus().toString());
 

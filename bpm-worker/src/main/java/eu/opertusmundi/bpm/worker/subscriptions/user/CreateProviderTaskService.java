@@ -16,7 +16,9 @@ import eu.opertusmundi.common.model.account.EnumCustomerType;
 import eu.opertusmundi.common.model.payment.UserRegistrationCommand;
 import eu.opertusmundi.common.service.ProviderRegistrationService;
 import eu.opertusmundi.common.service.contract.ProviderTemplateContractService;
-import eu.opertusmundi.common.service.mangopay.PaymentService;
+import eu.opertusmundi.common.service.mangopay.BankAccountService;
+import eu.opertusmundi.common.service.mangopay.UserService;
+import eu.opertusmundi.common.service.mangopay.WalletService;
 
 @Service
 public class CreateProviderTaskService extends AbstractCustomerTaskService {
@@ -26,21 +28,27 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
     @Value("${opertusmundi.bpm.worker.tasks.provider-registration.lock-duration:120000}")
     private Long lockDurationMillis;
 
-    final private PaymentService                  paymentService;
+    final private BankAccountService              bankAccountService;
     final private ProviderTemplateContractService providerTemplateContractService;
     final private ProviderRegistrationService     registrationService;
+    final private UserService                     userService;
+    final private WalletService                   walletService;
 
     @Autowired
     public CreateProviderTaskService(
-        PaymentService paymentService,
+        BankAccountService              bankAccountService,
         ProviderTemplateContractService providerTemplateContractService,
-        ProviderRegistrationService registrationService
+        ProviderRegistrationService     registrationService,
+        UserService                     userService,
+        WalletService                   walletService
     ) {
         super();
 
-        this.paymentService                  = paymentService;
+        this.bankAccountService              = bankAccountService;
         this.providerTemplateContractService = providerTemplateContractService;
         this.registrationService             = registrationService;
+        this.userService                     = userService;
+        this.walletService                   = walletService;
     }
 
     @Override
@@ -67,17 +75,17 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
 
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
-            this.paymentService.createUser(command);
-            this.paymentService.createWallet(command);
-            this.paymentService.createBankAccount(command);
+            this.userService.createUser(command);
+            this.walletService.createWallet(command);
+            this.bankAccountService.createBankAccount(command);
 
             this.providerTemplateContractService.updateDefaultContracts(userKey);
 
             this.registrationService.completeRegistration(userKey);
 
             // Initial update with values from MANGOPAY
-            this.paymentService.updateCustomerWalletFunds(userKey, customerType);
-            this.paymentService.updateUserBlockStatus(userKey, customerType);
+            this.walletService.updateCustomerWalletFunds(userKey, customerType);
+            this.userService.updateUserBlockStatus(userKey, customerType);
 
             externalTaskService.complete(externalTask);
 
