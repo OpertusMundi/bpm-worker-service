@@ -62,7 +62,6 @@ ENV MARKETPLACE_URL="" \
     ELASTICSEARCH_INDICES_PROFILES_INDEX_NAME="profiles" \
     KEYCLOAK_URL="" \
     KEYCLOAK_REALM="Topio-Market" \
-    KEYCLOAK_SERVICES_REALM="Topio-Market-Services" \
     KEYCLOAK_REFRESH_TOKEN_FILE="" \
     CONTRACT_SIGNPDF_KEYSTORE="/secrets/signatory-keystore" \
     CONTRACT_SIGNPDF_KEYSTORE_PASSWORD_FILE="/secrets/signatory-keystore-password" \
