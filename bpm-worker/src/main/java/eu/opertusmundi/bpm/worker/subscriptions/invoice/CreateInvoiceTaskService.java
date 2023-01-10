@@ -16,6 +16,7 @@ import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
 import eu.opertusmundi.bpm.worker.model.Parameters;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.payment.EnumInvoiceType;
+import eu.opertusmundi.common.repository.PayInRepository;
 import eu.opertusmundi.common.service.invoice.InvoiceGeneratorService;
 import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
@@ -26,6 +27,9 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
 
     @Value("${opertusmundi.bpm.worker.tasks.create-invoice.lock-duration:120000}")
     private Long lockDurationMillis;
+
+    @Autowired
+    private PayInRepository payInRepository;
 
     @Autowired
     private InvoiceGeneratorService invoiceGeneratorService;
@@ -48,9 +52,9 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
             logger.info("Received task. [taskId={}]", taskId);
 
             // Get parameters
-            final var payInKey         = UUID.fromString(externalTask.getBusinessKey());
             final var invoiceType      = this.getVariableAsString(externalTask, externalTaskService, "invoiceType", "ORDER_INVOICE");
             final var invoiceTypeValue = EnumInvoiceType.valueOf(invoiceType);
+            final var payInKey         = this.resolvePayInKey(externalTask, externalTaskService, invoiceTypeValue);
 
             Map<String, Object> variables = new HashMap<>();
 
@@ -79,6 +83,21 @@ public class CreateInvoiceTaskService extends AbstractTaskService {
 
             this.handleFailure(externalTaskService, externalTask, ex);
         }
+    }
+    
+    private UUID resolvePayInKey(ExternalTask externalTask, ExternalTaskService externalTaskService, EnumInvoiceType invoiceType) {
+        return switch (invoiceType) {
+            case ORDER_INVOICE, 
+                 SERVICE_BILLING_INVOICE -> UUID.fromString(externalTask.getBusinessKey());
+            case REFUND_INVOICE          -> {
+                final var businessKey = externalTask.getBusinessKey();
+                final var tokens      = businessKey.split("::");
+                final var refundId    = tokens[2];
+                final var payInKey    = this.payInRepository.findOneByRefundTransactionId(refundId).get().getKey();
+                yield payInKey;
+            }
+        };
+
     }
 
 }
