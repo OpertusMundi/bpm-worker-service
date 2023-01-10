@@ -37,6 +37,8 @@ import eu.opertusmundi.common.feign.client.EmailServiceFeignClient;
 import eu.opertusmundi.common.model.BaseResponse;
 import eu.opertusmundi.common.model.EnumAccountType;
 import eu.opertusmundi.common.model.MessageCode;
+import eu.opertusmundi.common.model.ServiceException;
+import eu.opertusmundi.common.model.account.AccountClientCommandDto;
 import eu.opertusmundi.common.model.account.AccountDto;
 import eu.opertusmundi.common.model.account.AccountMessageCode;
 import eu.opertusmundi.common.model.account.ConsumerIndividualCommandDto;
@@ -51,6 +53,7 @@ import eu.opertusmundi.common.model.geodata.Shard;
 import eu.opertusmundi.common.model.keycloak.server.UserDto;
 import eu.opertusmundi.common.model.keycloak.server.UserQueryDto;
 import eu.opertusmundi.common.repository.AccountRepository;
+import eu.opertusmundi.common.service.AccountClientService;
 import eu.opertusmundi.common.service.ConsumerRegistrationService;
 import eu.opertusmundi.common.service.DefaultUserFileNamingStrategy;
 import eu.opertusmundi.common.service.KeycloakAdminService;
@@ -63,7 +66,9 @@ import feign.FeignException;
 public class DefaultAccountActivationService implements AccountActivationService {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultAccountActivationService.class);
-    
+
+    private static final String DEFAULT_OAUTH_CLIENT_ALIAS = "DEFAULT";
+
     private static final CharacterRule[] PASSWORD_POLICY = new CharacterRule[] {
         new CharacterRule(EnglishCharacterData.Alphabetical),
         new CharacterRule(EnglishCharacterData.LowerCase),
@@ -80,38 +85,41 @@ public class DefaultAccountActivationService implements AccountActivationService
 
     @Value("${opertusmundi.bpm.worker.tasks.activate-account.otp-length:12}")
     private int otpLength;
-    
-    private final GeodataConfiguration                    geodataConfiguration;
+
+    private final AccountClientService                    accountClientService;
     private final AccountRepository                       accountRepository;
+    private final ConsumerRegistrationService             consumerRegistrationService;
     private final DefaultUserFileNamingStrategy           userFileNamingStrategy;
+    private final GeodataConfiguration                    geodataConfiguration;
+    private final KeycloakAdminService                    keycloakAdminService;
     private final MailMessageHelper                       mailMessageHelper;
     private final ObjectProvider<EmailServiceFeignClient> mailClient;
-    private final KeycloakAdminService                    keycloakAdminService;
-    private final ConsumerRegistrationService             consumerRegistrationService;
-    
+
     public DefaultAccountActivationService(
-        GeodataConfiguration                    geodataConfiguration,
+        AccountClientService                    accountClientService,
         AccountRepository                       accountRepository,
+        ConsumerRegistrationService             consumerRegistrationService,
         DefaultUserFileNamingStrategy           userFileNamingStrategy,
-        MailMessageHelper                       mailMessageHelper,
-        ObjectProvider<EmailServiceFeignClient> mailClient,
+        GeodataConfiguration                    geodataConfiguration,
         KeycloakAdminService                    keycloakAdminService,
-        ConsumerRegistrationService             consumerRegistrationService
+        MailMessageHelper                       mailMessageHelper,
+        ObjectProvider<EmailServiceFeignClient> mailClient
     ) {
-        this.geodataConfiguration        = geodataConfiguration;
+        this.accountClientService        = accountClientService;
         this.accountRepository           = accountRepository;
-        this.userFileNamingStrategy      = userFileNamingStrategy;
-        this.mailMessageHelper           = mailMessageHelper;
-        this.mailClient                  = mailClient;
-        this.keycloakAdminService        = keycloakAdminService;
         this.consumerRegistrationService = consumerRegistrationService;
+        this.geodataConfiguration        = geodataConfiguration;
+        this.keycloakAdminService        = keycloakAdminService;
+        this.mailClient                  = mailClient;
+        this.mailMessageHelper           = mailMessageHelper;
+        this.userFileNamingStrategy      = userFileNamingStrategy;
     }
 
     @PostConstruct
     void checkPostConstruct() {
         Assert.isTrue(this.otpLength >= MIN_PASSWORD_LENGTH, () -> "Expected OTP password length to be >= " + MIN_PASSWORD_LENGTH);
     }
-    
+
     public AccountDto completeAccountRegistration(UUID userKey, boolean registerConsumer) throws BpmnWorkerException {
         // Verify that the account exists and has the appropriate status
         AccountDto    account  = this.verifyAccount(userKey);
@@ -119,7 +127,7 @@ public class DefaultAccountActivationService implements AccountActivationService
 
         return external ? this.registerExternalAccount(account) : this.registerLocalAccount(account, registerConsumer);
     }
-    
+
     private AccountDto registerLocalAccount(AccountDto account, boolean registerConsumer) {
         // Prepare home directory for the new account
         this.setupHomeDirectory(account);
@@ -136,6 +144,9 @@ public class DefaultAccountActivationService implements AccountActivationService
             this.registerConsumer(account);
         }
 
+        // Create default OAuth2 client
+        this.createDefaultOAuth2Client(account);
+
         // Complete account registration
         account = this.activateAccount(account.getKey());
 
@@ -148,6 +159,9 @@ public class DefaultAccountActivationService implements AccountActivationService
     private AccountDto registerExternalAccount(AccountDto account) {
         // Prepare home directory for the new account
         this.setupHomeDirectory(account);
+
+        // Create default OAuth2 client
+        this.createDefaultOAuth2Client(account);
 
         // Complete account registration
         account = this.activateAccount(account.getKey());
@@ -340,6 +354,11 @@ public class DefaultAccountActivationService implements AccountActivationService
         }
     }
 
+    /**
+     * Initialize consumer registration for the specified account
+     *
+     * @param account
+     */
     private void registerConsumer(AccountDto account) {
         // Do not initialize a consumer registration workflow instance. The
         // registration task will be executed as part of the current
@@ -398,8 +417,25 @@ public class DefaultAccountActivationService implements AccountActivationService
 
         return account.toDto(true);
     }
-    
-    protected BpmnWorkerException buildException(
+
+    private void createDefaultOAuth2Client(AccountDto account) {
+        try {
+            final var clientCommand = AccountClientCommandDto.builder()
+                .alias(DEFAULT_OAUTH_CLIENT_ALIAS)
+                .clientId(Optional.of(account.getKey()))
+                .accountId(account.getId())
+                .build();
+            this.accountClientService.create(clientCommand);
+        } catch (ServiceException ex) {
+            if (ex.getCode() == AccountMessageCode.ACCOUNT_CLIENT_NOT_UNIQUE_ALIAS) {
+                // Ignore error if default client already exists
+                return;
+            }
+            throw ex;
+        }
+    }
+
+    private BpmnWorkerException buildException(
         MessageCode code, String message, String errorDetails
     ) {
         return  BpmnWorkerException.builder()
