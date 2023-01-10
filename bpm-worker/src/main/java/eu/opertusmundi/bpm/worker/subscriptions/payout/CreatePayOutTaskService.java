@@ -54,7 +54,7 @@ public class CreatePayOutTaskService extends AbstractTaskService {
             // Update PayOut
             final PayOutDto payOut = payOutService.createPayOutAtProvider(payOutKey);
             // Set PayOut status and id
-            variables.put("payOutId", payOut.getProviderPayOut());
+            variables.put("payOutId", payOut.getTransactionId());
             variables.put("payOutStatus", payOut.getStatus().toString());
 
             // Complete task

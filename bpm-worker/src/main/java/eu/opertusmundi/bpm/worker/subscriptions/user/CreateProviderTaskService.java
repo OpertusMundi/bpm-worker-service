@@ -84,7 +84,7 @@ public class CreateProviderTaskService extends AbstractCustomerTaskService {
             this.registrationService.completeRegistration(userKey);
 
             // Initial update with values from MANGOPAY
-            this.walletService.updateCustomerWalletFunds(userKey, customerType);
+            this.walletService.refreshUserWallets(userKey, customerType);
             this.userService.updateUserBlockStatus(userKey, customerType);
 
             externalTaskService.complete(externalTask);
