@@ -83,7 +83,7 @@ public class DefaultAssetDraftWorkerService extends BaseWorkerService implements
             // Send message to provider
             var subject        = String.format("Asset Publish Failure: %s %s", draft.getTitle(), draft.getVersion());
             var text           = draft.getHelpdeskErrorMessage();
-            var messageCommand = ClientMessageCommandDto.of(subject, text);
+            var messageCommand = ClientMessageCommandDto.of(subject, text, null);
             messageService.sendMessage(draft.getHelpdeskSetErrorAccount().getKey(), draft.getPublisher().getKey(), messageCommand);
         }
     }
@@ -110,7 +110,7 @@ public class DefaultAssetDraftWorkerService extends BaseWorkerService implements
         // Send message to provider
         var subject        = String.format("User Service Publish Failure: %s %s", service.getTitle(), service.getVersion());
         var text           = service.getHelpdeskErrorMessage();
-        var messageCommand = ClientMessageCommandDto.of(subject, text);
+        var messageCommand = ClientMessageCommandDto.of(subject, text, null);
         messageService.sendMessage(service.getHelpdeskSetErrorAccount().getKey(), service.getOwner().getKey(), messageCommand);
     }
     
