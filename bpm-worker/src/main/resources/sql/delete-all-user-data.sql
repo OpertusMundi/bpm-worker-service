@@ -16,13 +16,23 @@ BEGIN
   -- Delete payment history specific to this user
   DELETE from "analytics".payin_item_hist h where h.consumer = p_account_id or h.provider = p_account_id;
 
-  -- Delete billing records (deletes records from all payin related tables)
-  DELETE from "billing".service_billing b  where b."billed_account" = p_account_id;
-  
+  -- Delete recurring payins
   DELETE from "billing".payin_recurring_registration r where r."subscription" in (
     select s."id" from web.account_subscription s where s.consumer = p_account_id or s.provider = p_account_id
   );
+  -- Delete provider's payins
+  DELETE from "billing".payin where id in (
+  	select distinct payin from "billing".payin_item where provider = p_account_id
+  );
+  -- Delete consumer's payins
   DELETE from "billing".payin where consumer = p_account_id;
+  -- Delete billing records (deletes records from all payin related tables)
+  DELETE from "billing".service_billing b  where b."billed_account" = p_account_id;
+
+  DELETE from "billing".refund r where r.consumer = p_account_id or r.provider = p_account_id;
+
+  DELETE from "billing".transfer t where t.consumer = p_account_id or t.provider = p_account_id;
+  
   DELETE from "billing".payout p where p.provider = p_account_id;
 
   -- Delete contract records
