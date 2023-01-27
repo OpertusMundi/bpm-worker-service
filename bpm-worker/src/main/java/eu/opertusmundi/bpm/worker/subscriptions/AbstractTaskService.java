@@ -33,6 +33,8 @@ public abstract class AbstractTaskService extends BaseWorkerService implements E
 
     private static final String ErrorSeparator = "||";
 
+    private static final int MAX_ERROR_DETAILS_LENGTH = 4000;
+    
     protected static final String DEFAULT_ERROR_MESSAGE = "Operation has failed";
     protected static final int    DEFAULT_RETRY_COUNT   = 0;
     protected static final long   DEFAULT_RETRY_TIMEOUT = 2000L;
@@ -130,7 +132,7 @@ public abstract class AbstractTaskService extends BaseWorkerService implements E
     protected void handleBpmnError(
         ExternalTaskService externalTaskService, ExternalTask externalTask, String errorCode, String errorMessage, ServiceException ex
     ) {
-        final String errorDetails   = this.exceptionToString(ex);
+        final String errorDetails   = StringUtils.truncate(this.exceptionToString(ex), MAX_ERROR_DETAILS_LENGTH);
         String       messagesAsJson = "";
         try {
             // Set default message

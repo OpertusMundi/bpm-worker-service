@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<project 
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" 
-	xmlns="http://maven.apache.org/POM/4.0.0" 
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 >
 	<modelVersion>4.0.0</modelVersion>
@@ -23,6 +23,7 @@
 		<dependency.locations.enabled>false</dependency.locations.enabled>
 		<java.version>17</java.version>
 		<git-commit-id.skip>false</git-commit-id.skip>
+		<org.apache.commons.compress.version>1.22</org.apache.commons.compress.version>
 		<org.camunda.bpm.version>7.17.0</org.camunda.bpm.version>
 	</properties>
 
@@ -210,6 +211,12 @@
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<version>${org.apache.commons.compress.version}</version>
 		</dependency>
 	</dependencies>
 

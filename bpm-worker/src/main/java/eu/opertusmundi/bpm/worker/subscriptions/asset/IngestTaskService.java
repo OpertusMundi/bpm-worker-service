@@ -100,6 +100,8 @@ public class IngestTaskService extends AbstractTaskService {
             }
 
             logger.info("Completed task. [taskId={}]", taskId);
+            
+            externalTaskService.complete(externalTask);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
             if (ExceptionUtils.indexOfType(ex, feign.RetryableException.class) != -1) {
@@ -170,9 +172,6 @@ public class IngestTaskService extends AbstractTaskService {
                 logger.warn(publishResult.toString());
             }
         }
-
-        // Complete task
-        externalTaskService.complete(externalTask);
     }
 
     private final void ingestUserService(
@@ -209,9 +208,6 @@ public class IngestTaskService extends AbstractTaskService {
 
         // Publish
         userServiceService.publish(ownerKey, parentKey, serviceKey);
-
-        // Complete task
-        externalTaskService.complete(externalTask);
     }
 
     private ServerIngestResultResponseDto ingest(
