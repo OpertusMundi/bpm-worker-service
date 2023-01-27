@@ -65,7 +65,8 @@ ENV MARKETPLACE_URL="" \
     KEYCLOAK_REFRESH_TOKEN_FILE="" \
     CONTRACT_SIGNPDF_KEYSTORE="/secrets/signatory-keystore" \
     CONTRACT_SIGNPDF_KEYSTORE_PASSWORD_FILE="/secrets/signatory-keystore-password" \
-    CONTRACT_SIGNPDF_KEY_ALIAS="opertusmundi.eu"
+    CONTRACT_SIGNPDF_KEY_ALIAS="opertusmundi.eu" \
+    IPR_BASE_URL="http://ipr:8000/"
 
 
 ENV GIT_COMMIT=${git_commit}

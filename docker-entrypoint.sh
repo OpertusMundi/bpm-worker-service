@@ -74,6 +74,9 @@ runtime_profile=$(hostname | md5sum | head -c10)
     pid_base_url=$(echo ${PID_BASE_URL} | _validate_http_url "PID_BASE_URL")
     echo "opertusmundi.feign.persistent-identifier-service.url= ${pid_base_url}"
 
+    ipr_base_url=$(echo ${IPR_BASE_URL} | _validate_http_url "IPR_BASE_URL")
+    echo "opertusmundi.feign.ipr.url= ${ipr_base_url}"
+
     elasticsearch_base_url=$(echo ${ELASTICSEARCH_BASE_URL%/} | _validate_http_url "ELASTICSEARCH_BASE_URL")
     elasticsearch_indices_assets_index_name=${ELASTICSEARCH_INDICES_ASSETS_INDEX_NAME}
     elasticsearch_indices_profiles_index_name=${ELASTICSEARCH_INDICES_PROFILES_INDEX_NAME}
