@@ -23,6 +23,7 @@ import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
 import eu.opertusmundi.common.model.asset.service.UserServiceDto;
+import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.geodata.EnumGeodataWorkspace;
 import eu.opertusmundi.common.model.ingest.IngestServiceMessageCode;
@@ -100,7 +101,6 @@ public class IngestTaskService extends AbstractTaskService {
             }
 
             logger.info("Completed task. [taskId={}]", taskId);
-            
             externalTaskService.complete(externalTask);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
@@ -132,7 +132,6 @@ public class IngestTaskService extends AbstractTaskService {
     ) throws InterruptedException {
         final UUID    draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "assetKey");
         final UUID    publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
-        final boolean published    = this.getVariableAsBooleanString(externalTask, externalTaskService, "published");
 
         final AssetDraftDto draft             = providerAssetService.findOneDraft(publisherKey, draftKey, false);
         var                 userGeodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
@@ -152,7 +151,7 @@ public class IngestTaskService extends AbstractTaskService {
             final String          crs           = fileResource.getCrs();
             final String          shard         = userGeodataConfig.getShard();
             final String          workspace     = userGeodataConfig.getEffectiveWorkspace();
-            final String          path          = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
+            final String          path          = this.getAssetResource(externalTask, externalTaskService, publisherKey, draftKey, fileName);
 
             final ServerIngestResultResponseDto ingestResult = this.ingest(
                 externalTask, externalTaskService, idempotentKey, path, shard, workspace, tableName, encoding, crs
@@ -161,7 +160,8 @@ public class IngestTaskService extends AbstractTaskService {
             // Update metadata for the specific file
             providerAssetService.updateResourceIngestionData(publisherKey, draftKey, resource.getId(), ingestResult);
 
-            if(published) {
+            // Publish only services
+            if (draft.getType() == EnumAssetType.SERVICE) {
                 final ServerIngestPublishResponseDto publishResult = this.publish(
                     externalTask, externalTaskService, shard, workspace, ingestResult.getTable()
                 );
@@ -280,7 +280,7 @@ public class IngestTaskService extends AbstractTaskService {
         return this.ingestService.publish(idempotentKey, shard, workspace, tableName);
     }
 
-    private String getResource(
+    private String getAssetResource(
         ExternalTask externalTask, ExternalTaskService externalTaskService, UUID publisherKey, UUID draftKey, String resourceFileName
     ) throws BpmnWorkerException {
         try {

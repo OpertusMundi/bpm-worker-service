@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import eu.opertusmundi.bpm.worker.model.BpmnWorkerException;
@@ -76,68 +77,9 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             final UUID          publisherKey = this.getPublisherKey(externalTask, externalTaskService);
             final EnumAssetType type         = this.getType(externalTask, externalTaskService);
 
-            final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
-
-
-            if (type != EnumAssetType.SERVICE) {
-                throw BpmnWorkerException.builder()
-                    .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
-                    .message(String.format("Asset type is not supported [type=%s]", type))
-                    .build();
-            }
-
-            final AssetDraftDto draft = providerAssetService.findOneDraft(publisherKey, draftKey, false);
-
-            final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
-            final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
-
             logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
-
-
-            // Process all services
-            for (ResourceIngestionDataDto service : services) {
-                // Find endpoint
-                final ResourceIngestionDataDto.ServiceEndpoint endpoint = service.getEndpointByServiceType(serviceType);
-
-                if (endpoint == null) {
-                    // Service type not supported
-                    throw BpmnWorkerException.builder()
-                        .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
-                        .message(String.format(
-                            "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]",
-                            service.getTableName(), serviceType
-                        ))
-                        .build();
-                }
-
-                logger.info("Processing endpoint {}", endpoint.getUri());
-
-                final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
-                    endpoint.getType(), geodataConfig.getUrl(), endpoint.getUri(), geodataConfig.getEffectiveWorkspace(), service.getTableName().toString()
-                );
-
-                if(resource == null) {
-                    throw BpmnWorkerException.builder()
-                        .code(OgcServiceMessageCode.RESOURCE_NOT_CREATED)
-                        .message(String.format(
-                            "Failed to load metadata for resource (layer) [tableName=%s, type=%s, endpoint=%s]",
-                            service.getTableName(), endpoint.getType(), endpoint.getUri()
-                        ))
-                        .build();
-                }
-
-                logger.info("Service capabilities {}", objectMapper.writeValueAsString(resource));
-
-                // Set service resource properties
-                resource.setEndpoint(endpoint.getUri());
-                resource.setServiceType(endpoint.getType());
-                resource.setType(EnumResourceType.SERVICE);
-
-                // Link new resource with parent file resource
-                resource.setId(UUID.randomUUID().toString());
-                resource.setParentId(service.getKey());
-
-                this.providerAssetService.addResource(publisherKey, draftKey, resource);
+            if (type == EnumAssetType.SERVICE) {
+                this.getCapabilities(publisherKey, draftKey);
             }
 
             // Update draft status
@@ -155,9 +97,8 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
                 .variableAsString("status", newStatus.toString())
                 .buildValues();
 
-            externalTaskService.complete(externalTask, variables);
-
             logger.info("Completed task. [taskId={}]", taskId);
+            externalTaskService.complete(externalTask, variables);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
@@ -166,6 +107,60 @@ public class GetCapabilitiesTaskService extends AbstractTaskService {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
             this.handleFailure(externalTaskService, externalTask, ex);
+        }
+    }
+    
+    private void getCapabilities(UUID publisherKey, UUID draftKey) throws JsonProcessingException {
+        final UserGeodataConfiguration geodataConfig = userGeodataConfigurationResolver.resolveFromUserKey(publisherKey, EnumGeodataWorkspace.PUBLIC);
+        final AssetDraftDto            draft         = providerAssetService.findOneDraft(publisherKey, draftKey, false);
+
+        final List<ResourceIngestionDataDto> services    = draft.getCommand().getIngestionInfo();
+        final EnumSpatialDataServiceType     serviceType = draft.getCommand().getSpatialDataServiceType();
+
+        // Process all services
+        for (ResourceIngestionDataDto service : services) {
+            // Find endpoint
+            final ResourceIngestionDataDto.ServiceEndpoint endpoint = service.getEndpointByServiceType(serviceType);
+
+            if (endpoint == null) {
+                // Service type not supported
+                throw BpmnWorkerException.builder()
+                    .code(OgcServiceMessageCode.TYPE_NOT_SUPPORTED)
+                    .message(String.format(
+                        "Failed to load metadata for resource (layer). Endpoint not found [tableName=%s, type=%s]",
+                        service.getTableName(), serviceType
+                    ))
+                    .build();
+            }
+
+            logger.info("Processing endpoint {}", endpoint.getUri());
+
+            final ServiceResourceDto resource = this.geoServerUtils.getCapabilities(
+                endpoint.getType(), geodataConfig.getUrl(), endpoint.getUri(), geodataConfig.getEffectiveWorkspace(), service.getTableName().toString()
+            );
+
+            if(resource == null) {
+                throw BpmnWorkerException.builder()
+                    .code(OgcServiceMessageCode.RESOURCE_NOT_CREATED)
+                    .message(String.format(
+                        "Failed to load metadata for resource (layer) [tableName=%s, type=%s, endpoint=%s]",
+                        service.getTableName(), endpoint.getType(), endpoint.getUri()
+                    ))
+                    .build();
+            }
+
+            logger.info("Service capabilities {}", objectMapper.writeValueAsString(resource));
+
+            // Set service resource properties
+            resource.setEndpoint(endpoint.getUri());
+            resource.setServiceType(endpoint.getType());
+            resource.setType(EnumResourceType.SERVICE);
+
+            // Link new resource with parent file resource
+            resource.setId(UUID.randomUUID().toString());
+            resource.setParentId(service.getKey());
+
+            this.providerAssetService.addResource(publisherKey, draftKey, resource);
         }
     }
 

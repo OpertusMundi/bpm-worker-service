@@ -31,16 +31,21 @@ import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.BasicMessageCode;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
+import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
+import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
+import eu.opertusmundi.common.model.catalogue.client.EnumAssetType;
 import eu.opertusmundi.common.model.file.FileSystemException;
 import eu.opertusmundi.common.model.ipr.IprServiceMessageCode;
 import eu.opertusmundi.common.model.ipr.ServerIprJobStatusResponseDto;
+import eu.opertusmundi.common.model.pricing.EnumPricingModel;
 import eu.opertusmundi.common.model.profiler.DataProfilerServiceMessageCode;
 import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.IprService;
 import eu.opertusmundi.common.service.ProviderAssetService;
+import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
 public class IprTaskService extends AbstractTaskService {
@@ -89,6 +94,7 @@ public class IprTaskService extends AbstractTaskService {
         logger.debug("Processing task. [taskId={}, externalTask={}]", taskId, externalTask);
 
         try {
+            // Complete task in asset specific methods
             switch (type) {
                 case CATALOGUE_ASSET :
                     this.protectCatalogueAsset(externalTask, externalTaskService);
@@ -97,10 +103,6 @@ public class IprTaskService extends AbstractTaskService {
                     this.protectUserService(externalTask, externalTaskService);
                     break;
             }
-
-            logger.info("Completed task. [taskId={}]", taskId);
-            
-            externalTaskService.complete(externalTask);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
             if (ExceptionUtils.indexOfType(ex, feign.RetryableException.class) != -1) {
@@ -129,35 +131,75 @@ public class IprTaskService extends AbstractTaskService {
     private final void protectCatalogueAsset(
         ExternalTask externalTask, ExternalTaskService externalTaskService
     ) throws InterruptedException, IOException {
-        final UUID draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
-        final UUID publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
+        final String taskId       = externalTask.getId();
+        final UUID   draftKey     = this.getVariableAsUUID(externalTask, externalTaskService, "draftKey");
+        final UUID   publisherKey = this.getVariableAsUUID(externalTask, externalTaskService, "publisherKey");
         
         final AssetDraftDto     draft     = providerAssetService.findOneDraft(publisherKey, draftKey, false);
         final List<ResourceDto> resources = draft.getCommand().getResources();
         
-        if (!draft.isIprProtectionEnabled()) {
-            return;
-        }
-
-        // Process all resources
-        for (ResourceDto resource : resources) {
-            if (resource.getType() != EnumResourceType.FILE) {
-                continue;
-            }
-            final FileResourceDto fileResource      = (FileResourceDto) resource;
-            final String          idempotentKey     = fileResource.getId();
-            final String          fileName          = fileResource.getFileName();
-            final String          initialResource   = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName, false, true);
-            final String          protectedResource = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName, true, false);
-
-            final Path sourcePath = this.copyInputResource(idempotentKey, initialResource);
-
-            final var result = this.protect(externalTask, externalTaskService, idempotentKey, sourcePath, fileResource);
-
-            if (result.isCompleted() && result.isSuccess()) {
-                this.decompressAndCopyOutputResource(result.getResource().getOutputPath(), protectedResource);
+        if (draft.isIprProtectionEnabled()) {
+            // Process all resources
+            for (ResourceDto resource : resources) {
+                if (resource.getType() != EnumResourceType.FILE) {
+                    continue;
+                }
+                final FileResourceDto fileResource      = (FileResourceDto) resource;
+                final String          idempotentKey     = fileResource.getId();
+                final String          fileName          = fileResource.getFileName();
+                final String          initialResource   = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName, false, true);
+                final String          protectedResource = this.getResource(externalTask, externalTaskService, publisherKey, draftKey, fileName, true, false);
+    
+                final Path sourcePath = this.copyInputResource(idempotentKey, initialResource);
+    
+                final var result = this.protect(externalTask, externalTaskService, idempotentKey, sourcePath, fileResource);
+    
+                if (result.isCompleted() && result.isSuccess()) {
+                    this.decompressAndCopyOutputResource(result.getResource().getOutputPath(), protectedResource);
+                }
             }
         }
+        
+        // Update draft status if data ingestion is not required
+        final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
+        final var                         ingested  = this.isIngestRequired(draft);
+        
+        variables.variableAsBoolean("ingested", ingested);
+        if (!ingested) {
+            final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
+            final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
+
+            command.setAssetKey(draftKey);
+            command.setPublisherKey(publisherKey);
+            command.setStatus(newStatus);
+
+            variables.variableAsString("status", newStatus.toString());
+
+            this.providerAssetService.updateStatus(command);
+        }
+
+        logger.info("Completed task. [taskId={}]", taskId);
+        
+        externalTaskService.complete(externalTask, variables.buildValues());
+    }
+
+    /**
+     * Returns true is Ingest task service must be executed
+     * 
+     * <p>
+     * Data ingestion is required for service ASSETS and assets that support the
+     * {@code FIXED_PER_ROWS} pricing model.
+     * 
+     * @param draft
+     * @return
+     */
+    private boolean isIngestRequired(AssetDraftDto draft) {
+        final var type          = draft.getCommand().getType();
+        final var fixedRowModel = draft.getCommand().getPricingModels().stream()
+            .filter(p -> p.getType() == EnumPricingModel.FIXED_PER_ROWS)
+            .findAny().orElse(null);
+
+        return (type == EnumAssetType.SERVICE || fixedRowModel != null);
     }
 
     private final void protectUserService(

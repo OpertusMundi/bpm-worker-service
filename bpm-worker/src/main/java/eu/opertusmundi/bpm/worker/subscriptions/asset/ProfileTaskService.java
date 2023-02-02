@@ -23,8 +23,6 @@ import eu.opertusmundi.bpm.worker.model.ErrorCodes;
 import eu.opertusmundi.bpm.worker.subscriptions.AbstractTaskService;
 import eu.opertusmundi.common.model.ServiceException;
 import eu.opertusmundi.common.model.asset.AssetDraftDto;
-import eu.opertusmundi.common.model.asset.AssetDraftSetStatusCommandDto;
-import eu.opertusmundi.common.model.asset.EnumProviderAssetDraftStatus;
 import eu.opertusmundi.common.model.asset.EnumResourceType;
 import eu.opertusmundi.common.model.asset.FileResourceDto;
 import eu.opertusmundi.common.model.asset.ResourceDto;
@@ -41,7 +39,6 @@ import eu.opertusmundi.common.service.DraftFileManager;
 import eu.opertusmundi.common.service.ProviderAssetService;
 import eu.opertusmundi.common.service.UserServiceFileManager;
 import eu.opertusmundi.common.service.UserServiceService;
-import eu.opertusmundi.common.util.BpmInstanceVariablesBuilder;
 
 @Service
 public class ProfileTaskService extends AbstractTaskService {
@@ -106,6 +103,7 @@ public class ProfileTaskService extends AbstractTaskService {
             }
 
             logger.info("Completed task. [taskId={}]", taskId);
+            externalTaskService.complete(externalTask);
         } catch (final ServiceException ex) {
             logger.error(DEFAULT_ERROR_MESSAGE, ex);
 
@@ -161,27 +159,8 @@ public class ProfileTaskService extends AbstractTaskService {
                 providerAssetService.updateMetadata(publisherKey, draftKey, resource.getId(), metadata);
             }
         }
-
-        // Update draft status if this is not a SERVICE asset
-        final BpmInstanceVariablesBuilder variables = BpmInstanceVariablesBuilder.builder();
-
-        if (draft.getCommand().getType() != EnumAssetType.SERVICE) {
-            final AssetDraftSetStatusCommandDto command   = new AssetDraftSetStatusCommandDto();
-            final EnumProviderAssetDraftStatus  newStatus = EnumProviderAssetDraftStatus.PENDING_HELPDESK_REVIEW;
-
-            command.setAssetKey(draftKey);
-            command.setPublisherKey(publisherKey);
-            command.setStatus(newStatus);
-
-            variables.variableAsString("status", newStatus.toString());
-
-            this.providerAssetService.updateStatus(command);
-        }
-
-        // Complete task
-        externalTaskService.complete(externalTask, variables.buildValues());
     }
-
+    
     private void profileUserService(ExternalTask externalTask, ExternalTaskService externalTaskService) throws InterruptedException {
         final UUID ownerKey   = this.getVariableAsUUID(externalTask, externalTaskService, "ownerKey");
         final UUID serviceKey = this.getVariableAsUUID(externalTask, externalTaskService, "serviceKey");
@@ -199,9 +178,6 @@ public class ProfileTaskService extends AbstractTaskService {
 
         // Update metadata for the specific file
         userServiceService.updateMetadata(ownerKey, serviceKey, metadata);
-
-        // Complete task
-        externalTaskService.complete(externalTask);
     }
 
     private JsonNode profile(
